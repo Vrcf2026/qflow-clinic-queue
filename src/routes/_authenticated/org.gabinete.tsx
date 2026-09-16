@@ -75,7 +75,7 @@ function Gabinete() {
       userName={session.profile?.name}
       primaryRole={session.primaryRole}
       actions={
-        live.cabinets.length > 1 ? (
+        live.cabinets.length > 1 && !locked ? (
           <select
             className="rounded-lg border bg-card px-3 py-2 text-sm font-medium"
             value={cabinetId ?? ""}
@@ -98,7 +98,7 @@ function Gabinete() {
               <>
                 <p className="mt-2 text-3xl font-bold">{label(current)}</p>
                 <p className="mt-1 text-lg opacity-90">
-                  {current.full_ticket} · entrada {timeLisbon(current.called_at)}
+                  {current.full_ticket} · entrada {timeLisbon(current.called_at, session.org?.timezone ?? "Europe/Lisbon")}
                 </p>
                 <div className="mt-5 grid gap-2 sm:grid-cols-2">
                   <Button
@@ -133,11 +133,7 @@ function Gabinete() {
             disabled={!next || !cabinet}
             onClick={async () => {
               if (!next || !cabinet) return;
-              await callTicket(next, {
-                userId: session.user?.id,
-                cabinetId: cabinet.id,
-                cabinetName: cabinet.name,
-              });
+              await callTicket(next, { cabinetId: cabinet.id });
               await startService(next);
               live.refresh();
             }}

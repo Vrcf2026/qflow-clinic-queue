@@ -22,6 +22,7 @@ export const Route = createFileRoute("/_authenticated/org/recepcao")({
   head: () => ({
     meta: [
       { title: "Receção | QFlow" },
+      { name: "robots", content: "noindex, nofollow" },
       { name: "description", content: "Chamada de senhas e admissão de doentes na receção da clínica." },
       { property: "og:title", content: "Receção | QFlow" },
       { property: "og:description", content: "Chamar senhas, registar doentes e acompanhar as filas." },
@@ -32,7 +33,7 @@ export const Route = createFileRoute("/_authenticated/org/recepcao")({
 
 function Recepcao() {
   const session = useSession();
-  const live = useOrgLive(session.org?.id, session.org?.reset_time ?? "08:00");
+  const live = useOrgLive(session.org?.id, session.dayStart);
   const [deskId, setDeskId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [utente, setUtente] = useState("");
@@ -76,11 +77,7 @@ function Recepcao() {
 
   const queueName = (id: string) => live.queues.find((q) => q.id === id)?.name ?? "Fila";
 
-  const target = {
-    userId: session.user?.id,
-    deskId: desk?.id ?? null,
-    deskName: desk?.name ?? null,
-  };
+  const target = { deskId: desk?.id ?? null };
 
   const doCall = async () => {
     if (!next) return;
@@ -253,7 +250,7 @@ function Recepcao() {
                   </span>
                   <span className="text-muted-foreground">{STATUS_LABELS[t.status]}</span>
                   <span className="ml-3 tabular-nums text-muted-foreground">
-                    {timeLisbon(t.called_at)}
+                    {timeLisbon(t.called_at, session.org?.timezone ?? "Europe/Lisbon")}
                   </span>
                 </li>
               ))}
