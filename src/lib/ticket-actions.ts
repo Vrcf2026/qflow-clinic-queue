@@ -1,87 +1,106 @@
+import { toast } from "sonner";
+
 import { supabase } from "@/integrations/supabase/client";
 import type { Ticket } from "@/lib/qflow";
 
+/**
+ * Every ticket action runs on the server (SECURITY DEFINER functions), so the
+ * timestamps come from the application clock — never from the operator's device.
+ */
+
 type Target = {
-  userId?: string | null | undefined;
   deskId?: string | null | undefined;
-  deskName?: string | null | undefined;
   cabinetId?: string | null | undefined;
-  cabinetName?: string | null | undefined;
 };
 
-export async function callTicket(ticket: Ticket, target: Target) {
-  await supabase
-    .from("tickets")
-    .update({
-      status: "chamado",
-      called_at: new Date().toISOString(),
-      desk_id: target.deskId ?? null,
-      cabinet_id: target.cabinetId ?? null,
-    })
-    .eq("id", ticket.id);
+type Result = Record<string, unknown> & { error?: string };
 
-  await supabase.from("call_log").insert({
-    org_id: ticket.org_id,
-    ticket_id: ticket.id,
-    full_ticket: ticket.full_ticket,
-    called_by_user_id: target.userId ?? null,
-    desk_name: target.deskName ?? null,
-    cabinet_name: target.cabinetName ?? null,
-  });
+const MESSAGES: Record<string, string> = {
+  no_access: "Sem acesso: a sua conta não está ativa nesta clínica.",
+  forbidden: "Não tem permissão para esta senha.",
+  not_found: "Senha não encontrada.",
+  not_missed: "Esta senha não está marcada como falta.",
+  recovery_expired: "Já passou o prazo para recuperar esta senha.",
+  name_required: "Indique o nome do doente.",
+};
+
+function handle(data: unknown): Result {
+  const result = (data ?? {}) as Result;
+  if (result.error) toast.error(MESSAGES[result.error] ?? "Não foi possível concluir a ação.");
+  return result;
+}
+
+export async function callTicket(ticket: Ticket, target: Target, recall = false) {
+  const args: { p_ticket_id: string; p_recall: boolean; p_desk_id?: string; p_cabinet_id?: string } = {
+    p_ticket_id: ticket.id,
+    p_recall: recall,
+  };
+  if (target.deskId) args.p_desk_id = target.deskId;
+  if (target.cabinetId) args.p_cabinet_id = target.cabinetId;
+  const { data } = await supabase.rpc("call_ticket", args);
+  return handle(data);
 }
 
 export async function recallTicket(ticket: Ticket, target: Target) {
-  await callTicket(ticket, target);
+  return callTicket(ticket, target, true);
 }
 
 export async function startService(ticket: Ticket) {
-  await supabase.from("tickets").update({ status: "em_atendimento" }).eq("id", ticket.id);
+  const { data } = await supabase.rpc("start_service", { p_ticket_id: ticket.id });
+  return handle(data);
 }
 
 export async function finishTicket(ticket: Ticket) {
-  await supabase
-    .from("tickets")
-    .update({ status: "concluido", done_at: new Date().toISOString() })
-    .eq("id", ticket.id);
-
-  if (ticket.called_at) {
-    const minutes = Math.max(
-      1,
-      Math.round((Date.now() - new Date(ticket.called_at).getTime()) / 60000),
-    );
-    const { data: queue } = await supabase
-      .from("queues")
-      .select("avg_duration_minutes")
-      .eq("id", ticket.queue_id)
-      .maybeSingle();
-    if (queue) {
-      const blended = Math.max(1, Math.round(queue.avg_duration_minutes * 0.8 + minutes * 0.2));
-      await supabase
-        .from("queues")
-        .update({ avg_duration_minutes: blended })
-        .eq("id", ticket.queue_id);
-    }
-  }
+  const { data } = await supabase.rpc("finish_ticket", { p_ticket_id: ticket.id });
+  return handle(data);
 }
 
 export async function missTicket(ticket: Ticket) {
-  await supabase
-    .from("tickets")
-    .update({ status: "faltou", done_at: new Date().toISOString() })
-    .eq("id", ticket.id);
+  const { data } = await supabase.rpc("miss_ticket", { p_ticket_id: ticket.id });
+  return handle(data);
 }
 
-/** "Saltar": sends the ticket to the back of its queue. */
+/** "Saltar": the ticket keeps its place in history and comes back a few tickets later. */
 export async function skipTicket(ticket: Ticket) {
-  await supabase
-    .from("tickets")
-    .update({ priority: false, created_at: new Date().toISOString() })
-    .eq("id", ticket.id);
+  const { data } = await supabase.rpc("skip_ticket", { p_ticket_id: ticket.id });
+  const result = handle(data);
+  if (!result.error) {
+    if (result["status"] === "faltou") {
+      toast.warning(`${ticket.full_ticket} passou a falta (limite de saltos atingido).`);
+    } else {
+      toast.success(
+        `${ticket.full_ticket} volta à fila dentro de ${String(result["reinsert_after"] ?? 3)} senhas.`,
+      );
+    }
+  }
+  return result;
+}
+
+/** Brings a missed ticket back into the queue, within the configured window. */
+export async function recoverTicket(ticket: Ticket) {
+  const { data } = await supabase.rpc("recover_ticket", { p_ticket_id: ticket.id });
+  const result = handle(data);
+  if (!result.error) toast.success(`${ticket.full_ticket} voltou à fila.`);
+  return result;
 }
 
 export async function admitTicket(ticket: Ticket, name: string, utente: string) {
-  await supabase
-    .from("tickets")
-    .update({ patient_name: name.trim(), patient_utente: utente.trim() || null })
-    .eq("id", ticket.id);
+  const { data } = await supabase.rpc("admit_ticket", {
+    p_ticket_id: ticket.id,
+    p_name: name,
+    p_utente: utente,
+  });
+  return handle(data);
+}
+
+export async function resetServiceDay() {
+  const { data } = await supabase.rpc("reset_service_day");
+  return handle(data);
+}
+
+/** Next ticket a desk should call, honouring the desk queue preference order. */
+export async function nextTicketForDesk(deskId: string): Promise<Ticket | null> {
+  const { data } = await supabase.rpc("next_ticket_for_desk", { p_desk_id: deskId });
+  const result = (data ?? {}) as { ticket?: Ticket | null; error?: string };
+  return result.ticket ?? null;
 }

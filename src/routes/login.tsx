@@ -15,6 +15,7 @@ export const Route = createFileRoute("/login")({
   head: () => ({
     meta: [
       { title: "Entrar no QFlow" },
+      { name: "robots", content: "noindex, nofollow" },
       { name: "description", content: "Acesso da equipa da clínica ao QFlow: receção, gabinetes, turno e administração." },
       { property: "og:title", content: "Entrar no QFlow" },
       { property: "og:description", content: "Acesso da equipa da clínica à gestão de senhas QFlow." },
@@ -26,46 +27,22 @@ export const Route = createFileRoute("/login")({
 function LoginPage() {
   const navigate = useNavigate();
   const session = useSession();
-  const [mode, setMode] = useState<"entrar" | "criar">("entrar");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (session.loading || !session.user) return;
-    const go = async () => {
-      if (!session.primaryRole) {
-        await supabase.rpc("bootstrap_access");
-        session.reload();
-        return;
-      }
+    if (session.primaryRole) {
       void navigate({ to: ROLE_HOME[session.primaryRole], replace: true });
-    };
-    void go();
-  }, [session.loading, session.user, session.primaryRole, navigate, session]);
+    }
+  }, [session.loading, session.user, session.primaryRole, navigate]);
+
+  const blocked = !session.loading && !!session.user && !session.primaryRole;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
-    if (mode === "criar") {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: { name },
-          emailRedirectTo: `${window.location.origin}/login`,
-        },
-      });
-      setBusy(false);
-      if (error) {
-        toast.error(error.message);
-        return;
-      }
-      toast.success("Conta criada. Verifique o email para confirmar o acesso.");
-      setMode("entrar");
-      return;
-    }
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setBusy(false);
     if (error) toast.error("Email ou palavra-passe incorretos.");
@@ -82,20 +59,33 @@ function LoginPage() {
     <main className="flex min-h-screen items-center justify-center bg-background px-4 py-10">
       <div className="w-full max-w-md rounded-3xl border bg-card p-8 shadow-sm">
         <span className="font-display text-3xl font-extrabold tracking-tight text-primary">QFlow</span>
-        <h1 className="mt-6 text-2xl font-bold text-card-foreground">
-          {mode === "entrar" ? "Entrar na plataforma" : "Criar conta"}
-        </h1>
+        <h1 className="mt-6 text-2xl font-bold text-card-foreground">Entrar na plataforma</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Acesso reservado à equipa da clínica.
+          Acesso reservado à equipa da clínica. As contas são criadas pela administração.
         </p>
 
+        {blocked && (
+          <div className="mt-5 rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-sm">
+            <p className="font-semibold text-destructive">Conta sem acesso</p>
+            <p className="mt-1 text-muted-foreground">
+              Esta conta ainda não foi autorizada por uma administração. Peça à administração da sua
+              clínica para criar o seu acesso.
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-3"
+              onClick={async () => {
+                await supabase.auth.signOut();
+                session.reload();
+              }}
+            >
+              Sair
+            </Button>
+          </div>
+        )}
+
         <form onSubmit={submit} className="mt-6 space-y-4">
-          {mode === "criar" && (
-            <div className="space-y-2">
-              <Label htmlFor="name">Nome</Label>
-              <Input id="name" value={name} onChange={(e) => setName(e.target.value)} required />
-            </div>
-          )}
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input
@@ -112,7 +102,7 @@ function LoginPage() {
             <Input
               id="password"
               type="password"
-              autoComplete={mode === "entrar" ? "current-password" : "new-password"}
+              autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
@@ -120,7 +110,7 @@ function LoginPage() {
             />
           </div>
           <Button type="submit" className="w-full" size="lg" disabled={busy}>
-            {mode === "entrar" ? "Entrar" : "Criar conta"}
+            Entrar
           </Button>
         </form>
 
@@ -133,14 +123,6 @@ function LoginPage() {
         <Button variant="outline" className="w-full" size="lg" onClick={google}>
           Entrar com Google
         </Button>
-
-        <button
-          type="button"
-          className="mt-6 w-full text-sm text-muted-foreground underline-offset-4 hover:underline"
-          onClick={() => setMode(mode === "entrar" ? "criar" : "entrar")}
-        >
-          {mode === "entrar" ? "Não tem conta? Criar conta" : "Já tem conta? Entrar"}
-        </button>
       </div>
     </main>
   );

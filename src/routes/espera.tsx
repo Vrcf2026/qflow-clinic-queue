@@ -48,6 +48,7 @@ export const Route = createFileRoute("/espera")({
   head: () => ({
     meta: [
       { title: "A minha senha | QFlow" },
+      { name: "robots", content: "noindex, nofollow" },
       { name: "description", content: "Acompanhe a posição da sua senha na fila da clínica em tempo real." },
       { property: "og:title", content: "A minha senha | QFlow" },
       { property: "og:description", content: "Posição na fila e tempo de espera em tempo real." },

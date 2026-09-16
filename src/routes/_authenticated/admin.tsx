@@ -4,18 +4,22 @@ import { Plus } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
+import { ChartCard, OrgStats as OrgStatsPanel } from "@/components/org-stats";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/hooks/use-qflow";
+import { Bar, BarChart, CartesianGrid, Line, LineChart, Tooltip, XAxis, YAxis } from "recharts";
+
 import { MODULE_LABELS, modules, type Device, type Modules, type Org } from "@/lib/qflow";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({
     meta: [
       { title: "Plataforma | QFlow" },
+      { name: "robots", content: "noindex, nofollow" },
       { name: "description", content: "Gestão global das clínicas, módulos e dispositivos da plataforma QFlow." },
       { property: "og:title", content: "Plataforma | QFlow" },
       { property: "og:description", content: "Criar clínicas, ativar módulos e ver estatísticas globais." },
@@ -26,6 +30,16 @@ export const Route = createFileRoute("/_authenticated/admin")({
 
 type OrgStats = Record<string, number>;
 
+type Platform = {
+  totals?: { orgs: number; devices: number; users: number; tickets: number };
+  by_org?: { name: string; plan: string; tickets: number; missed: number }[];
+  by_day?: { day: string; tickets: number }[];
+};
+
+function isoDate(d: Date) {
+  return d.toISOString().slice(0, 10);
+}
+
 function SuperAdmin() {
   const session = useSession();
   const isSuper = session.roles.includes("super_admin");
@@ -33,6 +47,8 @@ function SuperAdmin() {
   const [devices, setDevices] = useState<Device[]>([]);
   const [stats, setStats] = useState<OrgStats>({});
   const [newOrg, setNewOrg] = useState({ name: "", slug: "" });
+  const [platform, setPlatform] = useState<Platform>({});
+  const [detailOrg, setDetailOrg] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const [{ data: orgRows }, { data: deviceRows }, { data: ticketRows }] = await Promise.all([
@@ -48,6 +64,16 @@ function SuperAdmin() {
     const counts: OrgStats = {};
     for (const t of ticketRows ?? []) counts[t.org_id] = (counts[t.org_id] ?? 0) + 1;
     setStats(counts);
+
+    // Estatísticas globais dos últimos 30 dias, calculadas no servidor.
+    const to = new Date();
+    const from = new Date();
+    from.setDate(from.getDate() - 29);
+    const { data: pf } = await supabase.rpc("platform_stats", {
+      p_from: isoDate(from),
+      p_to: isoDate(to),
+    });
+    setPlatform((pf ?? {}) as Platform);
   }, []);
 
   useEffect(() => {
@@ -109,15 +135,37 @@ function SuperAdmin() {
       <div className="grid gap-6">
         <section className="grid gap-4 sm:grid-cols-3">
           {[
-            { label: "Clínicas ativas", value: orgs.length },
-            { label: "Senhas hoje (todas)", value: totalToday },
-            { label: "Dispositivos", value: devices.length },
+            { label: "Clínicas ativas", value: platform.totals?.orgs ?? orgs.length },
+            { label: "Senhas (30 dias)", value: platform.totals?.tickets ?? totalToday },
+            { label: "Dispositivos ativos", value: platform.totals?.devices ?? devices.length },
           ].map((s) => (
             <div key={s.label} className="rounded-2xl border bg-card p-5">
               <p className="text-sm text-muted-foreground">{s.label}</p>
               <p className="ticket-number mt-1 text-4xl">{s.value}</p>
             </div>
           ))}
+        </section>
+
+        <section className="grid gap-6 lg:grid-cols-2">
+          <ChartCard title="Senhas por dia (todas as clínicas)">
+            <LineChart data={platform.by_day ?? []}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+              <XAxis dataKey="day" fontSize={11} tickMargin={6} />
+              <YAxis fontSize={11} allowDecimals={false} />
+              <Tooltip />
+              <Line type="monotone" dataKey="tickets" stroke="var(--color-primary)" strokeWidth={2} />
+            </LineChart>
+          </ChartCard>
+          <ChartCard title="Senhas por clínica (30 dias)">
+            <BarChart data={platform.by_org ?? []}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+              <XAxis dataKey="name" fontSize={11} tickMargin={6} />
+              <YAxis fontSize={11} allowDecimals={false} />
+              <Tooltip />
+              <Bar dataKey="tickets" fill="var(--color-primary)" radius={[6, 6, 0, 0]} />
+              <Bar dataKey="missed" fill="var(--color-destructive)" radius={[6, 6, 0, 0]} />
+            </BarChart>
+          </ChartCard>
         </section>
 
         <section className="rounded-2xl border bg-card p-5">
@@ -158,9 +206,18 @@ function SuperAdmin() {
                       {org.slug} · plano {org.plan} · {stats[org.id] ?? 0} senha(s) hoje
                     </p>
                   </div>
-                  <span className="text-sm text-muted-foreground">
-                    {devices.filter((d) => d.org_id === org.id).length} dispositivo(s)
-                  </span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm text-muted-foreground">
+                      {devices.filter((d) => d.org_id === org.id).length} dispositivo(s)
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setDetailOrg(detailOrg === org.id ? null : org.id)}
+                    >
+                      {detailOrg === org.id ? "Fechar estatísticas" : "Ver estatísticas"}
+                    </Button>
+                  </div>
                 </div>
                 <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                   {(Object.keys(MODULE_LABELS) as (keyof Modules)[]).map((key) => (
@@ -173,6 +230,11 @@ function SuperAdmin() {
                     </label>
                   ))}
                 </div>
+                {detailOrg === org.id && (
+                  <div className="mt-5 border-t pt-5">
+                    <OrgStatsPanel orgId={org.id} />
+                  </div>
+                )}
               </article>
             );
           })}

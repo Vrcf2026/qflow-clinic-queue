@@ -8,12 +8,14 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrgLive, useSession } from "@/hooks/use-qflow";
+import { resetServiceDay } from "@/lib/ticket-actions";
 import { MODULE_LABELS, modules, queueIds, waitingColor, type Modules } from "@/lib/qflow";
 
 export const Route = createFileRoute("/_authenticated/org/turno")({
   head: () => ({
     meta: [
       { title: "Chefe de turno | QFlow" },
+      { name: "robots", content: "noindex, nofollow" },
       { name: "description", content: "Gestão do turno: filas ativas, balcões, gabinetes e reset do dia." },
       { property: "og:title", content: "Chefe de turno | QFlow" },
       { property: "og:description", content: "Ativar filas, atribuir balcões e acompanhar o atendimento ao vivo." },
@@ -24,7 +26,7 @@ export const Route = createFileRoute("/_authenticated/org/turno")({
 
 function Turno() {
   const session = useSession();
-  const live = useOrgLive(session.org?.id, session.org?.reset_time ?? "08:00");
+  const live = useOrgLive(session.org?.id, session.dayStart);
   const [busy, setBusy] = useState(false);
   const mods = modules(session.org);
 
@@ -51,21 +53,21 @@ function Turno() {
     live.refresh();
   };
 
+  /**
+   * Fecha as senhas abertas do dia de serviço atual no servidor. A numeração
+   * reinicia sempre em 001 na hora de reset configurada na clínica.
+   */
   const resetDay = async () => {
     if (!session.org) return;
     setBusy(true);
-    const open = live.tickets.filter((t) => t.status !== "concluido" && t.status !== "faltou");
-    if (open.length) {
-      await supabase
-        .from("tickets")
-        .update({ status: "concluido", done_at: new Date().toISOString() })
-        .in(
-          "id",
-          open.map((t) => t.id),
-        );
-    }
+    const result = await resetServiceDay();
     setBusy(false);
-    toast.success("Contadores do dia reiniciados. As próximas senhas começam em 001.");
+    if (!result.error) {
+      toast.success(
+        `${String(result["closed"] ?? 0)} senha(s) do dia fechadas. A numeração reinicia às ${session.org.reset_time}.`,
+      );
+    }
+    session.reload();
     live.refresh();
   };
 
@@ -78,7 +80,7 @@ function Turno() {
       primaryRole={session.primaryRole}
       actions={
         <Button variant="outline" onClick={resetDay} disabled={busy}>
-          <RotateCcw className="mr-2 size-4" /> Reset do dia
+          <RotateCcw className="mr-2 size-4" /> Fechar senhas do dia
         </Button>
       }
     >

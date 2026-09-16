@@ -14,6 +14,7 @@ export const Route = createFileRoute("/_authenticated/org/gabinete")({
   head: () => ({
     meta: [
       { title: "Gabinete | QFlow" },
+      { name: "robots", content: "noindex, nofollow" },
       { name: "description", content: "Chamada de doentes e acompanhamento da consulta no gabinete." },
       { property: "og:title", content: "Gabinete | QFlow" },
       { property: "og:description", content: "Chamar o próximo doente e concluir consultas em tempo real." },
@@ -24,15 +25,22 @@ export const Route = createFileRoute("/_authenticated/org/gabinete")({
 
 function Gabinete() {
   const session = useSession();
-  const live = useOrgLive(session.org?.id, session.org?.reset_time ?? "08:00");
+  const live = useOrgLive(session.org?.id, session.dayStart);
   const [cabinetId, setCabinetId] = useState<string | null>(null);
   const [note, setNote] = useState("");
 
+  // A doctor is bound to the cabinet assigned to their account; other roles may switch.
+  const locked = session.primaryRole === "medico" && !!session.profile?.cabinet_id;
+
   useEffect(() => {
+    if (locked) {
+      setCabinetId(session.profile?.cabinet_id ?? null);
+      return;
+    }
     if (cabinetId) return;
     const active = live.cabinets.filter((c) => c.active);
     setCabinetId(session.profile?.cabinet_id ?? active[0]?.id ?? null);
-  }, [cabinetId, live.cabinets, session.profile?.cabinet_id]);
+  }, [locked, cabinetId, live.cabinets, session.profile?.cabinet_id]);
 
   const cabinet = live.cabinets.find((c) => c.id === cabinetId) ?? null;
   const cabQueues = useMemo(() => {
@@ -67,7 +75,7 @@ function Gabinete() {
       userName={session.profile?.name}
       primaryRole={session.primaryRole}
       actions={
-        live.cabinets.length > 1 ? (
+        live.cabinets.length > 1 && !locked ? (
           <select
             className="rounded-lg border bg-card px-3 py-2 text-sm font-medium"
             value={cabinetId ?? ""}
@@ -90,7 +98,7 @@ function Gabinete() {
               <>
                 <p className="mt-2 text-3xl font-bold">{label(current)}</p>
                 <p className="mt-1 text-lg opacity-90">
-                  {current.full_ticket} · entrada {timeLisbon(current.called_at)}
+                  {current.full_ticket} · entrada {timeLisbon(current.called_at, session.org?.timezone ?? "Europe/Lisbon")}
                 </p>
                 <div className="mt-5 grid gap-2 sm:grid-cols-2">
                   <Button
@@ -125,11 +133,7 @@ function Gabinete() {
             disabled={!next || !cabinet}
             onClick={async () => {
               if (!next || !cabinet) return;
-              await callTicket(next, {
-                userId: session.user?.id,
-                cabinetId: cabinet.id,
-                cabinetName: cabinet.name,
-              });
+              await callTicket(next, { cabinetId: cabinet.id });
               await startService(next);
               live.refresh();
             }}

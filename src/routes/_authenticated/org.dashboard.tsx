@@ -4,12 +4,14 @@ import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
+import { OrgStats } from "@/components/org-stats";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
+import { createTeamMember } from "@/lib/team.functions";
 import { useOrgLive, useSession } from "@/hooks/use-qflow";
 import {
   MODULE_LABELS,
@@ -32,6 +34,7 @@ export const Route = createFileRoute("/_authenticated/org/dashboard")({
   head: () => ({
     meta: [
       { title: "Administração da clínica | QFlow" },
+      { name: "robots", content: "noindex, nofollow" },
       {
         name: "description",
         content: "Gestão de filas, balcões, gabinetes, equipa, dispositivos e painel de TV da clínica.",
@@ -45,6 +48,7 @@ export const Route = createFileRoute("/_authenticated/org/dashboard")({
 
 const TABS = [
   ["geral", "Visão geral"],
+  ["estatisticas", "Estatísticas"],
   ["filas", "Filas"],
   ["balcoes", "Balcões"],
   ["gabinetes", "Gabinetes"],
@@ -59,7 +63,7 @@ const TABS = [
 function Dashboard() {
   const session = useSession();
   const orgId = session.org?.id;
-  const live = useOrgLive(orgId, session.org?.reset_time ?? "08:00");
+  const live = useOrgLive(orgId, session.dayStart);
   const mods = modules(session.org);
 
   const [team, setTeam] = useState<(Profile & { roles: AppRole[] })[]>([]);
@@ -73,6 +77,16 @@ function Dashboard() {
     pt: true,
     en: false,
   });
+  const [newUser, setNewUser] = useState<{
+    name: string;
+    email: string;
+    password: string;
+    role: AppRole;
+    deskId: string;
+    cabinetId: string;
+  }>({ name: "", email: "", password: "", role: "rececionista", deskId: "", cabinetId: "" });
+  const [creating, setCreating] = useState(false);
+  const [flow, setFlow] = useState({ skip_reinsert_after: 3, max_skips: 3, missed_recovery_minutes: 60 });
   const [newDevice, setNewDevice] = useState<{ name: string; type: "quiosque" | "tv" }>({
     name: "",
     type: "quiosque",
@@ -110,6 +124,11 @@ function Dashboard() {
       timezone: org.timezone,
       pt: kl.pt !== false,
       en: !!kl.en,
+    });
+    setFlow({
+      skip_reinsert_after: org.skip_reinsert_after,
+      max_skips: org.max_skips,
+      missed_recovery_minutes: org.missed_recovery_minutes,
     });
   }, [session.org]);
 
@@ -171,6 +190,35 @@ function Dashboard() {
     await supabase.from("user_roles").insert({ user_id: userId, org_id: orgId, role });
     await supabase.from("profiles").update({ org_id: orgId }).eq("id", userId);
     toast.success("Papel atualizado.");
+    void loadTeam();
+  };
+
+  /** Cria a conta no servidor (só super_admin ou org_admin podem). */
+  const createUser = async () => {
+    setCreating(true);
+    const result = await createTeamMember({
+      data: {
+        name: newUser.name.trim(),
+        email: newUser.email.trim(),
+        password: newUser.password,
+        role: newUser.role,
+        ...(newUser.deskId ? { deskId: newUser.deskId } : {}),
+        ...(newUser.cabinetId ? { cabinetId: newUser.cabinetId } : {}),
+      },
+    }).catch(() => ({ error: "create_failed" }) as { error: string });
+    setCreating(false);
+    if ("error" in result && result.error) {
+      toast.error(
+        result.error === "forbidden"
+          ? "Não tem permissão para criar contas."
+          : result.error.includes("already")
+            ? "Já existe uma conta com este email."
+            : "Não foi possível criar a conta.",
+      );
+      return;
+    }
+    toast.success("Conta criada. A pessoa já pode entrar com estes dados.");
+    setNewUser({ name: "", email: "", password: "", role: "rececionista", deskId: "", cabinetId: "" });
     void loadTeam();
   };
 
@@ -244,6 +292,11 @@ function Dashboard() {
               })}
             </ul>
           </div>
+        </TabsContent>
+
+        {/* Estatísticas */}
+        <TabsContent value="estatisticas" className="mt-6">
+          <OrgStats />
         </TabsContent>
 
         {/* Filas */}
@@ -337,6 +390,40 @@ function Dashboard() {
                       />
                     </label>
                   </div>
+                  <p className="mt-4 text-xs text-muted-foreground">
+                    Filas servidas (a ordem define a preferência de chamada — a primeira é servida
+                    primeiro).
+                  </p>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    {queueIds(row).map((qid, i) => {
+                      const ids = queueIds(row);
+                      const q = live.queues.find((x) => x.id === qid);
+                      if (!q) return null;
+                      const move = (delta: number) => {
+                        const next = [...ids];
+                        const target = i + delta;
+                        if (target < 0 || target >= next.length) return;
+                        const a = next[i]!;
+                        next[i] = next[target]!;
+                        next[target] = a;
+                        void patchPlace(table, row.id, { queue_ids: next });
+                      };
+                      return (
+                        <span
+                          key={qid}
+                          className="flex items-center gap-1 rounded-lg bg-primary px-2 py-1 text-xs font-semibold text-primary-foreground"
+                        >
+                          {i + 1}. {q.name}
+                          <button aria-label="Subir" onClick={() => move(-1)} className="px-1">
+                            ↑
+                          </button>
+                          <button aria-label="Descer" onClick={() => move(1)} className="px-1">
+                            ↓
+                          </button>
+                        </span>
+                      );
+                    })}
+                  </div>
                   <div className="mt-3 flex flex-wrap gap-2">
                     {live.queues.map((q) => {
                       const ids = queueIds(row);
@@ -368,12 +455,88 @@ function Dashboard() {
 
         {/* Utilizadores */}
         <TabsContent value="equipa" className="mt-6 space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Cada pessoa cria a sua conta em {origin}/login. Depois atribua aqui o papel, o balcão e o
-            gabinete.
-          </p>
+          <div className="grid gap-3 rounded-2xl border bg-card p-4 md:grid-cols-3">
+            <div className="md:col-span-3">
+              <h2 className="text-lg font-semibold">Criar conta</h2>
+              <p className="text-sm text-muted-foreground">
+                Não existe registo público: as contas são criadas aqui e a pessoa entra em {origin}
+                /login com o email e a palavra-passe que definir.
+              </p>
+            </div>
+            <Field label="Nome">
+              <Input value={newUser.name} onChange={(e) => setNewUser({ ...newUser, name: e.target.value })} />
+            </Field>
+            <Field label="Email">
+              <Input
+                type="email"
+                value={newUser.email}
+                onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+              />
+            </Field>
+            <Field label="Palavra-passe inicial (mín. 8)">
+              <Input
+                type="text"
+                value={newUser.password}
+                onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+              />
+            </Field>
+            <Field label="Papel">
+              <select
+                className="rounded-lg border bg-card px-3 py-2 text-sm"
+                value={newUser.role}
+                onChange={(e) => setNewUser({ ...newUser, role: e.target.value as AppRole })}
+              >
+                {(["org_admin", "chefe_turno", "rececionista", "medico"] as AppRole[]).map((r) => (
+                  <option key={r} value={r}>
+                    {ROLE_LABELS[r]}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Balcão">
+              <select
+                className="rounded-lg border bg-card px-3 py-2 text-sm"
+                value={newUser.deskId}
+                onChange={(e) => setNewUser({ ...newUser, deskId: e.target.value })}
+              >
+                <option value="">—</option>
+                {live.desks.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Gabinete">
+              <select
+                className="rounded-lg border bg-card px-3 py-2 text-sm"
+                value={newUser.cabinetId}
+                onChange={(e) => setNewUser({ ...newUser, cabinetId: e.target.value })}
+              >
+                <option value="">—</option>
+                {live.cabinets.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <div className="md:col-span-3">
+              <Button
+                onClick={createUser}
+                disabled={
+                  creating ||
+                  newUser.name.trim().length < 2 ||
+                  !newUser.email.includes("@") ||
+                  newUser.password.length < 8
+                }
+              >
+                <Plus className="mr-2 size-4" /> Criar conta
+              </Button>
+            </div>
+          </div>
           {team.map((member) => (
-            <div key={member.id} className="grid gap-3 rounded-2xl border bg-card p-4 md:grid-cols-4">
+            <div key={member.id} className="grid gap-3 rounded-2xl border bg-card p-4 md:grid-cols-5">
               <div>
                 <p className="font-medium">{member.name || "Sem nome"}</p>
                 <p className="text-sm text-muted-foreground">{member.email}</p>
@@ -431,6 +594,16 @@ function Dashboard() {
                     </option>
                   ))}
                 </select>
+              </Field>
+              <Field label="Conta ativa">
+                <Switch
+                  checked={member.active}
+                  onCheckedChange={async (v) => {
+                    await supabase.from("profiles").update({ active: v }).eq("id", member.id);
+                    toast.success(v ? "Conta reativada." : "Conta desativada — acesso bloqueado.");
+                    void loadTeam();
+                  }}
+                />
               </Field>
             </div>
           ))}
@@ -643,9 +816,43 @@ function Dashboard() {
               />
             </label>
           </div>
+          <div className="grid gap-3 border-t pt-4 sm:grid-cols-3">
+            <Field label="Saltar: volta depois de N senhas">
+              <Input
+                type="number"
+                min={1}
+                max={20}
+                value={flow.skip_reinsert_after}
+                onChange={(e) =>
+                  setFlow({ ...flow, skip_reinsert_after: Number(e.target.value) || 3 })
+                }
+              />
+            </Field>
+            <Field label="Saltos máximos antes de falta">
+              <Input
+                type="number"
+                min={1}
+                max={10}
+                value={flow.max_skips}
+                onChange={(e) => setFlow({ ...flow, max_skips: Number(e.target.value) || 3 })}
+              />
+            </Field>
+            <Field label="Recuperar faltas até (min)">
+              <Input
+                type="number"
+                min={0}
+                max={480}
+                value={flow.missed_recovery_minutes}
+                onChange={(e) =>
+                  setFlow({ ...flow, missed_recovery_minutes: Number(e.target.value) || 0 })
+                }
+              />
+            </Field>
+          </div>
           <Button
             onClick={() =>
               void saveOrg({
+                ...flow,
                 reset_time: settings.reset_time,
                 voice_lang: settings.voice_lang,
                 timezone: settings.timezone,
