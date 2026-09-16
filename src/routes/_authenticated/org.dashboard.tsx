@@ -390,6 +390,40 @@ function Dashboard() {
                       />
                     </label>
                   </div>
+                  <p className="mt-4 text-xs text-muted-foreground">
+                    Filas servidas (a ordem define a preferência de chamada — a primeira é servida
+                    primeiro).
+                  </p>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    {queueIds(row).map((qid, i) => {
+                      const ids = queueIds(row);
+                      const q = live.queues.find((x) => x.id === qid);
+                      if (!q) return null;
+                      const move = (delta: number) => {
+                        const next = [...ids];
+                        const target = i + delta;
+                        if (target < 0 || target >= next.length) return;
+                        const a = next[i]!;
+                        next[i] = next[target]!;
+                        next[target] = a;
+                        void patchPlace(table, row.id, { queue_ids: next });
+                      };
+                      return (
+                        <span
+                          key={qid}
+                          className="flex items-center gap-1 rounded-lg bg-primary px-2 py-1 text-xs font-semibold text-primary-foreground"
+                        >
+                          {i + 1}. {q.name}
+                          <button aria-label="Subir" onClick={() => move(-1)} className="px-1">
+                            ↑
+                          </button>
+                          <button aria-label="Descer" onClick={() => move(1)} className="px-1">
+                            ↓
+                          </button>
+                        </span>
+                      );
+                    })}
+                  </div>
                   <div className="mt-3 flex flex-wrap gap-2">
                     {live.queues.map((q) => {
                       const ids = queueIds(row);
