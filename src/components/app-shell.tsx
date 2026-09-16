@@ -27,11 +27,11 @@ export function AppShell({
   children,
 }: {
   title: string;
-  subtitle?: string;
+  subtitle?: string | undefined;
   roles: AppRole[];
-  userName?: string | null;
-  primaryRole?: AppRole | null;
-  actions?: ReactNode;
+  userName?: string | null | undefined;
+  primaryRole?: AppRole | null | undefined;
+  actions?: ReactNode | undefined;
   children: ReactNode;
 }) {
   const navigate = useNavigate();

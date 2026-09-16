@@ -24,7 +24,7 @@ const TICKET_COLUMNS =
 
 export const Route = createFileRoute("/tv")({
   ssr: false,
-  validateSearch: (search: Record<string, unknown>) => ({ token: String(search.token ?? "") }),
+  validateSearch: (search: Record<string, unknown>) => ({ token: String(search["token"] ?? "") }),
   head: () => ({
     meta: [
       { title: "Painel de chamadas | QFlow" },

@@ -58,14 +58,17 @@ function LoginPage() {
         },
       });
       setBusy(false);
-      if (error) return toast.error(error.message);
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
       toast.success("Conta criada. Verifique o email para confirmar o acesso.");
       setMode("entrar");
       return;
     }
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setBusy(false);
-    if (error) return toast.error("Email ou palavra-passe incorretos.");
+    if (error) toast.error("Email ou palavra-passe incorretos.");
   };
 
   const google = async () => {
