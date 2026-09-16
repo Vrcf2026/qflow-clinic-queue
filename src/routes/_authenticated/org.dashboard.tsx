@@ -68,7 +68,7 @@ function Dashboard() {
 
   const [team, setTeam] = useState<(Profile & { roles: AppRole[] })[]>([]);
   const [devices, setDevices] = useState<Device[]>([]);
-  const [brand, setBrand] = useState({ name: "", logo_url: "", primary_color: "#1a6fc4" });
+  const [brand, setBrand] = useState({ name: "", logo_url: "", primary_color: "#1a6fc4", secondary_color: "#07101f" });
   const [tv, setTv] = useState<TvConfig>(tvConfig(session.org));
   const [settings, setSettings] = useState({
     reset_time: "08:00",
@@ -115,7 +115,7 @@ function Dashboard() {
   useEffect(() => {
     const org = session.org;
     if (!org) return;
-    setBrand({ name: org.name, logo_url: org.logo_url ?? "", primary_color: org.primary_color });
+    setBrand({ name: org.name, logo_url: org.logo_url ?? "", primary_color: org.primary_color, secondary_color: org.secondary_color });
     setTv(tvConfig(org));
     const kl = (org.kiosk_languages ?? {}) as { pt?: boolean; en?: boolean };
     setSettings({
@@ -690,34 +690,136 @@ function Dashboard() {
         </TabsContent>
 
         {/* Personalização */}
-        <TabsContent value="marca" className="mt-6 max-w-xl space-y-4 rounded-2xl border bg-card p-5">
-          <Field label="Nome da clínica">
-            <Input value={brand.name} onChange={(e) => setBrand({ ...brand, name: e.target.value })} />
-          </Field>
-          <Field label="Endereço do logótipo">
-            <Input
-              value={brand.logo_url}
-              placeholder="https://…"
-              onChange={(e) => setBrand({ ...brand, logo_url: e.target.value })}
-            />
-          </Field>
-          <Field label="Cor principal">
-            <Input
-              type="color"
-              value={brand.primary_color}
-              onChange={(e) => setBrand({ ...brand, primary_color: e.target.value })}
-            />
-          </Field>
+        <TabsContent value="marca" className="mt-6 space-y-6 rounded-2xl border bg-card p-5 max-w-2xl">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Nome da clínica">
+              <Input value={brand.name} onChange={(e) => setBrand({ ...brand, name: e.target.value })} />
+            </Field>
+            <Field label="Logótipo">
+              {brand.logo_url && (
+                <div className="mb-2 flex items-center gap-3 rounded-xl border bg-muted p-2">
+                  <img src={brand.logo_url} alt="Logo" className="h-10 w-auto max-w-[120px] object-contain" />
+                  <button className="text-xs text-muted-foreground hover:text-destructive" onClick={() => setBrand({ ...brand, logo_url: "" })}>Remover</button>
+                </div>
+              )}
+              <div className="flex gap-2">
+                <Input
+                  value={brand.logo_url}
+                  placeholder="https://… ou carregue um ficheiro"
+                  onChange={(e) => setBrand({ ...brand, logo_url: e.target.value })}
+                  className="flex-1"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => document.getElementById("logo-upload-org")?.click()}
+                >
+                  Ficheiro
+                </Button>
+                <input
+                  id="logo-upload-org"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file || !orgId) return;
+                    const path = `logos/${orgId}-${Date.now()}-${file.name}`;
+                    const { error } = await supabase.storage.from("org-assets").upload(path, file, { upsert: true });
+                    if (error) { toast.error("Não foi possível carregar o logótipo."); return; }
+                    const { data } = supabase.storage.from("org-assets").getPublicUrl(path);
+                    setBrand({ ...brand, logo_url: data.publicUrl });
+                    toast.success("Logótipo carregado.");
+                  }}
+                />
+              </div>
+            </Field>
+          </div>
+
+          <div>
+            <p className="mb-3 text-sm font-medium">Cores</p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Cor primária" hint="Botões, senhas, quiosque">
+                <div className="flex items-center gap-3">
+                  <input
+                    type="color"
+                    value={brand.primary_color}
+                    onChange={(e) => setBrand({ ...brand, primary_color: e.target.value })}
+                    className="h-10 w-14 cursor-pointer rounded-lg border bg-card p-1"
+                  />
+                  <Input
+                    value={brand.primary_color}
+                    onChange={(e) => setBrand({ ...brand, primary_color: e.target.value })}
+                    className="font-mono text-sm"
+                    maxLength={7}
+                  />
+                </div>
+              </Field>
+              <Field label="Cor secundária" hint="Fundo do painel TV">
+                <div className="flex items-center gap-3">
+                  <input
+                    type="color"
+                    value={brand.secondary_color}
+                    onChange={(e) => setBrand({ ...brand, secondary_color: e.target.value })}
+                    className="h-10 w-14 cursor-pointer rounded-lg border bg-card p-1"
+                  />
+                  <Input
+                    value={brand.secondary_color}
+                    onChange={(e) => setBrand({ ...brand, secondary_color: e.target.value })}
+                    className="font-mono text-sm"
+                    maxLength={7}
+                  />
+                </div>
+              </Field>
+            </div>
+
+            {/* Pré-visualização */}
+            <div className="mt-4 flex gap-3">
+              <div className="flex flex-1 items-center justify-center rounded-xl py-4 text-sm font-semibold text-white" style={{ backgroundColor: brand.primary_color }}>
+                Cor primária
+              </div>
+              <div className="flex flex-1 items-center justify-center rounded-xl py-4 text-sm font-semibold text-white" style={{ backgroundColor: brand.secondary_color }}>
+                Fundo TV
+              </div>
+            </div>
+
+            {/* Paletes rápidas */}
+            <div className="mt-4">
+              <p className="mb-2 text-xs text-muted-foreground">Paletes rápidas</p>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { label: "Azul", primary: "#1a6fc4", secondary: "#07101f" },
+                  { label: "Verde", primary: "#0e9488", secondary: "#062820" },
+                  { label: "Roxo", primary: "#7c3aed", secondary: "#1a0a3a" },
+                  { label: "Âmbar", primary: "#b45309", secondary: "#1a0e00" },
+                  { label: "Coral", primary: "#e11d48", secondary: "#1a000a" },
+                  { label: "Cinzento", primary: "#475569", secondary: "#0f172a" },
+                ].map((p) => (
+                  <button
+                    key={p.label}
+                    onClick={() => setBrand({ ...brand, primary_color: p.primary, secondary_color: p.secondary })}
+                    className="flex items-center gap-2 rounded-lg border bg-card px-3 py-1.5 text-xs font-medium hover:bg-accent transition-colors"
+                  >
+                    <span className="size-3 rounded-full" style={{ backgroundColor: p.primary }} />
+                    <span className="size-3 rounded-full" style={{ backgroundColor: p.secondary }} />
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
           <Button
             onClick={() =>
               void saveOrg({
                 name: brand.name,
                 logo_url: brand.logo_url || null,
                 primary_color: brand.primary_color,
+                secondary_color: brand.secondary_color,
               })
             }
           >
-            Guardar
+            Guardar personalização
           </Button>
         </TabsContent>
 

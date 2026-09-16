@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Download } from "lucide-react";
 import {
   Bar,
   BarChart,
@@ -61,20 +62,66 @@ export function OrgStats({ orgId }: { orgId?: string | undefined }) {
 
   const totals = data?.totals;
 
+  const exportCSV = () => {
+    if (!data) return;
+    const rows = [
+      ["Dia", "Senhas", "Faltas"],
+      ...(data.by_day ?? []).map((r) => [r.day, r.tickets, r.missed]),
+    ];
+    const csv = rows.map((r) => r.join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `qflow-relatorio-${from}-${to}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const setPreset = (days: number) => {
+    const t2 = new Date();
+    const f = new Date();
+    f.setDate(f.getDate() - days + 1);
+    setFrom(isoDate(f));
+    setTo(isoDate(t2));
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end gap-3 rounded-2xl border bg-card p-4">
-        <div className="flex flex-col gap-1.5">
-          <Label className="text-xs text-muted-foreground">De</Label>
-          <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+      <div className="rounded-2xl border bg-card p-4 space-y-3">
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-xs text-muted-foreground">De</Label>
+            <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-xs text-muted-foreground">Até</Label>
+            <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+          </div>
+          <Button variant="outline" onClick={() => void load()}>
+            Atualizar
+          </Button>
+          <Button variant="outline" onClick={exportCSV} disabled={!data}>
+            <Download className="mr-2 size-4" /> Exportar CSV
+          </Button>
         </div>
-        <div className="flex flex-col gap-1.5">
-          <Label className="text-xs text-muted-foreground">Até</Label>
-          <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+        <div className="flex flex-wrap gap-2">
+          {[
+            { label: "Hoje", days: 1 },
+            { label: "7 dias", days: 7 },
+            { label: "14 dias", days: 14 },
+            { label: "30 dias", days: 30 },
+            { label: "90 dias", days: 90 },
+          ].map((p) => (
+            <button
+              key={p.label}
+              onClick={() => setPreset(p.days)}
+              className="rounded-lg border bg-muted px-3 py-1 text-xs font-medium hover:bg-accent transition-colors"
+            >
+              {p.label}
+            </button>
+          ))}
         </div>
-        <Button variant="outline" onClick={() => void load()}>
-          Atualizar
-        </Button>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-6">
