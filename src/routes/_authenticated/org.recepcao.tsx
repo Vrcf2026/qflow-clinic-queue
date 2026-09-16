@@ -125,23 +125,30 @@ function Recepcao() {
       userName={session.profile?.name}
       primaryRole={session.primaryRole}
       actions={
-        mods.multi_balcao && live.desks.length > 0 ? (
+        live.desks.length > 0 ? (
           <div className="flex items-center gap-2">
             <Label className="text-sm text-muted-foreground">Balcão</Label>
-            <select
-              className="rounded-lg border bg-card px-3 py-2 text-sm font-medium"
-              value={deskId ?? ""}
-              onChange={(e) => setDeskId(e.target.value)}
-            >
-              {live.desks.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name}
-                </option>
-              ))}
-            </select>
+            {canSwitchDesk ? (
+              <select
+                className="rounded-lg border bg-card px-3 py-2 text-sm font-medium"
+                value={deskId ?? ""}
+                onChange={(e) => setDeskId(e.target.value)}
+              >
+                {live.desks.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <span className="rounded-lg border bg-muted px-3 py-2 text-sm font-semibold">
+                {desk?.name ?? "Sem balcão atribuído"}
+              </span>
+            )}
           </div>
         ) : null
       }
+
     >
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Chamadas */}
