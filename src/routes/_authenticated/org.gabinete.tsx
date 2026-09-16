@@ -14,6 +14,7 @@ export const Route = createFileRoute("/_authenticated/org/gabinete")({
   head: () => ({
     meta: [
       { title: "Gabinete | QFlow" },
+      { name: "robots", content: "noindex, nofollow" },
       { name: "description", content: "Chamada de doentes e acompanhamento da consulta no gabinete." },
       { property: "og:title", content: "Gabinete | QFlow" },
       { property: "og:description", content: "Chamar o próximo doente e concluir consultas em tempo real." },
@@ -24,15 +25,22 @@ export const Route = createFileRoute("/_authenticated/org/gabinete")({
 
 function Gabinete() {
   const session = useSession();
-  const live = useOrgLive(session.org?.id, session.org?.reset_time ?? "08:00");
+  const live = useOrgLive(session.org?.id, session.dayStart);
   const [cabinetId, setCabinetId] = useState<string | null>(null);
   const [note, setNote] = useState("");
 
+  // A doctor is bound to the cabinet assigned to their account; other roles may switch.
+  const locked = session.primaryRole === "medico" && !!session.profile?.cabinet_id;
+
   useEffect(() => {
+    if (locked) {
+      setCabinetId(session.profile?.cabinet_id ?? null);
+      return;
+    }
     if (cabinetId) return;
     const active = live.cabinets.filter((c) => c.active);
     setCabinetId(session.profile?.cabinet_id ?? active[0]?.id ?? null);
-  }, [cabinetId, live.cabinets, session.profile?.cabinet_id]);
+  }, [locked, cabinetId, live.cabinets, session.profile?.cabinet_id]);
 
   const cabinet = live.cabinets.find((c) => c.id === cabinetId) ?? null;
   const cabQueues = useMemo(() => {
