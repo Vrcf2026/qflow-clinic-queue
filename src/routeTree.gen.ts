@@ -15,6 +15,8 @@ import { Route as EsperaRouteImport } from './routes/espera'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as QuiosqueRouteImport } from './routes/quiosque'
 import { Route as TvRouteImport } from './routes/tv'
+import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
+import { Route as AuthenticatedOrgDashboardRouteImport } from './routes/_authenticated/org.dashboard'
 import { Route as AuthenticatedOrgGabineteRouteImport } from './routes/_authenticated/org.gabinete'
 import { Route as AuthenticatedOrgRecepcaoRouteImport } from './routes/_authenticated/org.recepcao'
 import { Route as AuthenticatedOrgTurnoRouteImport } from './routes/_authenticated/org.turno'
@@ -48,6 +50,17 @@ const TvRoute = TvRouteImport.update({
   path: '/tv',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedOrgDashboardRoute =
+  AuthenticatedOrgDashboardRouteImport.update({
+    id: '/org/dashboard',
+    path: '/org/dashboard',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedOrgGabineteRoute =
   AuthenticatedOrgGabineteRouteImport.update({
     id: '/org/gabinete',
@@ -72,6 +85,8 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/quiosque': typeof QuiosqueRoute
   '/tv': typeof TvRoute
+  '/admin': typeof AuthenticatedAdminRoute
+  '/org/dashboard': typeof AuthenticatedOrgDashboardRoute
   '/org/gabinete': typeof AuthenticatedOrgGabineteRoute
   '/org/recepcao': typeof AuthenticatedOrgRecepcaoRoute
   '/org/turno': typeof AuthenticatedOrgTurnoRoute
@@ -82,6 +97,8 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/quiosque': typeof QuiosqueRoute
   '/tv': typeof TvRoute
+  '/admin': typeof AuthenticatedAdminRoute
+  '/org/dashboard': typeof AuthenticatedOrgDashboardRoute
   '/org/gabinete': typeof AuthenticatedOrgGabineteRoute
   '/org/recepcao': typeof AuthenticatedOrgRecepcaoRoute
   '/org/turno': typeof AuthenticatedOrgTurnoRoute
@@ -94,6 +111,8 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/quiosque': typeof QuiosqueRoute
   '/tv': typeof TvRoute
+  '/_authenticated/admin': typeof AuthenticatedAdminRoute
+  '/_authenticated/org/dashboard': typeof AuthenticatedOrgDashboardRoute
   '/_authenticated/org/gabinete': typeof AuthenticatedOrgGabineteRoute
   '/_authenticated/org/recepcao': typeof AuthenticatedOrgRecepcaoRoute
   '/_authenticated/org/turno': typeof AuthenticatedOrgTurnoRoute
@@ -106,6 +125,8 @@ export interface FileRouteTypes {
     | '/login'
     | '/quiosque'
     | '/tv'
+    | '/admin'
+    | '/org/dashboard'
     | '/org/gabinete'
     | '/org/recepcao'
     | '/org/turno'
@@ -116,6 +137,8 @@ export interface FileRouteTypes {
     | '/login'
     | '/quiosque'
     | '/tv'
+    | '/admin'
+    | '/org/dashboard'
     | '/org/gabinete'
     | '/org/recepcao'
     | '/org/turno'
@@ -127,6 +150,8 @@ export interface FileRouteTypes {
     | '/login'
     | '/quiosque'
     | '/tv'
+    | '/_authenticated/admin'
+    | '/_authenticated/org/dashboard'
     | '/_authenticated/org/gabinete'
     | '/_authenticated/org/recepcao'
     | '/_authenticated/org/turno'
@@ -185,6 +210,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TvRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/admin': {
+      id: '/_authenticated/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AuthenticatedAdminRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/org/dashboard': {
+      id: '/_authenticated/org/dashboard'
+      path: '/org/dashboard'
+      fullPath: '/org/dashboard'
+      preLoaderRoute: typeof AuthenticatedOrgDashboardRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/org/gabinete': {
       id: '/_authenticated/org/gabinete'
       path: '/org/gabinete'
@@ -210,12 +249,16 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
+  AuthenticatedOrgDashboardRoute: typeof AuthenticatedOrgDashboardRoute
   AuthenticatedOrgGabineteRoute: typeof AuthenticatedOrgGabineteRoute
   AuthenticatedOrgRecepcaoRoute: typeof AuthenticatedOrgRecepcaoRoute
   AuthenticatedOrgTurnoRoute: typeof AuthenticatedOrgTurnoRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAdminRoute: AuthenticatedAdminRoute,
+  AuthenticatedOrgDashboardRoute: AuthenticatedOrgDashboardRoute,
   AuthenticatedOrgGabineteRoute: AuthenticatedOrgGabineteRoute,
   AuthenticatedOrgRecepcaoRoute: AuthenticatedOrgRecepcaoRoute,
   AuthenticatedOrgTurnoRoute: AuthenticatedOrgTurnoRoute,
