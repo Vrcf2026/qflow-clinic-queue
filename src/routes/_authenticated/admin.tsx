@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
+import { createTeamMember } from "@/lib/team.functions";
 import { useSession } from "@/hooks/use-qflow";
 import { Bar, BarChart, CartesianGrid, Line, LineChart, Tooltip, XAxis, YAxis } from "recharts";
 
@@ -49,6 +50,35 @@ function SuperAdmin() {
   const [newOrg, setNewOrg] = useState({ name: "", slug: "" });
   const [platform, setPlatform] = useState<Platform>({});
   const [detailOrg, setDetailOrg] = useState<string | null>(null);
+  const [orgAdmin, setOrgAdmin] = useState<{ org: string; name: string; email: string; password: string }>({
+    org: "",
+    name: "",
+    email: "",
+    password: "",
+  });
+
+  /** Cria o administrador de uma clínica (validado no servidor). */
+  const createOrgAdmin = async (orgId: string) => {
+    const result = await createTeamMember({
+      data: {
+        name: orgAdmin.name.trim(),
+        email: orgAdmin.email.trim(),
+        password: orgAdmin.password,
+        role: "org_admin",
+        orgId,
+      },
+    }).catch(() => ({ error: "create_failed" }) as { error: string });
+    if ("error" in result && result.error) {
+      toast.error(
+        result.error.includes("already")
+          ? "Já existe uma conta com este email."
+          : "Não foi possível criar a conta.",
+      );
+      return;
+    }
+    toast.success("Administrador da clínica criado.");
+    setOrgAdmin({ org: "", name: "", email: "", password: "" });
+  };
 
   const load = useCallback(async () => {
     const [{ data: orgRows }, { data: deviceRows }, { data: ticketRows }] = await Promise.all([
@@ -213,6 +243,19 @@ function SuperAdmin() {
                     <Button
                       variant="outline"
                       size="sm"
+                      onClick={() =>
+                        setOrgAdmin(
+                          orgAdmin.org === org.id
+                            ? { org: "", name: "", email: "", password: "" }
+                            : { org: org.id, name: "", email: "", password: "" },
+                        )
+                      }
+                    >
+                      {orgAdmin.org === org.id ? "Cancelar" : "Criar administrador"}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
                       onClick={() => setDetailOrg(detailOrg === org.id ? null : org.id)}
                     >
                       {detailOrg === org.id ? "Fechar estatísticas" : "Ver estatísticas"}
@@ -230,6 +273,36 @@ function SuperAdmin() {
                     </label>
                   ))}
                 </div>
+                {orgAdmin.org === org.id && (
+                  <div className="mt-4 grid gap-3 rounded-xl bg-muted p-4 sm:grid-cols-4">
+                    <Input
+                      placeholder="Nome"
+                      value={orgAdmin.name}
+                      onChange={(e) => setOrgAdmin({ ...orgAdmin, name: e.target.value })}
+                    />
+                    <Input
+                      placeholder="Email"
+                      type="email"
+                      value={orgAdmin.email}
+                      onChange={(e) => setOrgAdmin({ ...orgAdmin, email: e.target.value })}
+                    />
+                    <Input
+                      placeholder="Palavra-passe (mín. 8)"
+                      value={orgAdmin.password}
+                      onChange={(e) => setOrgAdmin({ ...orgAdmin, password: e.target.value })}
+                    />
+                    <Button
+                      disabled={
+                        orgAdmin.name.trim().length < 2 ||
+                        !orgAdmin.email.includes("@") ||
+                        orgAdmin.password.length < 8
+                      }
+                      onClick={() => void createOrgAdmin(org.id)}
+                    >
+                      Criar conta
+                    </Button>
+                  </div>
+                )}
                 {detailOrg === org.id && (
                   <div className="mt-5 border-t pt-5">
                     <OrgStatsPanel orgId={org.id} />
