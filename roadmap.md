@@ -10,10 +10,12 @@
 - Páginas internas fora do Google
 - docs/backend.md
 
-## Em curso
-- Receção: o recepcionista não escolhe as filas do balcão; só escolhe/vê o balcão.
-  A atribuição de filas é do chefe de turno ou administração.
+- Receção: filas do balcão definidas só pelo chefe de turno/administração; balcão fixo quando atribuído
+- "Re-chamar" com registo próprio (recall_count + evento "rechamada") e novo anúncio de voz na TV
+- Página /setup para a primeira conta de administração
 
 ## Por fazer
-- Confirmar que "Re-chamar" tem registo próprio (recall_count/ticket_events) e som na TV
+- Nota de turno do gabinete ainda não fica guardada
+- Google: falta a configuração do lado da Google para o botão "Entrar com Google"
+- Canal de vídeo da TV (endereço do stream/M3U) por preencher
 - SMS (depois)
