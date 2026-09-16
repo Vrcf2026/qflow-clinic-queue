@@ -33,8 +33,8 @@ function handle(data: unknown): Result {
 export async function callTicket(ticket: Ticket, target: Target, recall = false) {
   const { data } = await supabase.rpc("call_ticket", {
     p_ticket_id: ticket.id,
-    p_desk_id: target.deskId ?? null,
-    p_cabinet_id: target.cabinetId ?? null,
+    p_desk_id: target.deskId ?? undefined,
+    p_cabinet_id: target.cabinetId ?? undefined,
     p_recall: recall,
   });
   return handle(data);
