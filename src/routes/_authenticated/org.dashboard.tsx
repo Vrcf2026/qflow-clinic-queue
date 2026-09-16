@@ -32,6 +32,7 @@ export const Route = createFileRoute("/_authenticated/org/dashboard")({
   head: () => ({
     meta: [
       { title: "Administração da clínica | QFlow" },
+      { name: "robots", content: "noindex, nofollow" },
       {
         name: "description",
         content: "Gestão de filas, balcões, gabinetes, equipa, dispositivos e painel de TV da clínica.",

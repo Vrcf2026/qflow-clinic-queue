@@ -68,6 +68,7 @@ export const Route = createFileRoute("/quiosque")({
   head: () => ({
     meta: [
       { title: "Quiosque de senhas | QFlow" },
+      { name: "robots", content: "noindex, nofollow" },
       { name: "description", content: "Quiosque de emissão de senhas bilingue para clínicas." },
       { property: "og:title", content: "Quiosque de senhas QFlow" },
       { property: "og:description", content: "Emissão de senhas no quiosque, em português ou inglês." },

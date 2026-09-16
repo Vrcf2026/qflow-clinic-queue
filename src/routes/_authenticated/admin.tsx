@@ -16,6 +16,7 @@ export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({
     meta: [
       { title: "Plataforma | QFlow" },
+      { name: "robots", content: "noindex, nofollow" },
       { name: "description", content: "Gestão global das clínicas, módulos e dispositivos da plataforma QFlow." },
       { property: "og:title", content: "Plataforma | QFlow" },
       { property: "og:description", content: "Criar clínicas, ativar módulos e ver estatísticas globais." },
