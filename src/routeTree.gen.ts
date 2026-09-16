@@ -10,33 +10,123 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as EsperaRouteImport } from './routes/espera'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as QuiosqueRouteImport } from './routes/quiosque'
+import { Route as TvRouteImport } from './routes/tv'
+import { Route as AuthenticatedOrgGabineteRouteImport } from './routes/_authenticated/org.gabinete'
+import { Route as AuthenticatedOrgRecepcaoRouteImport } from './routes/_authenticated/org.recepcao'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EsperaRoute = EsperaRouteImport.update({
+  id: '/espera',
+  path: '/espera',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const QuiosqueRoute = QuiosqueRouteImport.update({
+  id: '/quiosque',
+  path: '/quiosque',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TvRoute = TvRouteImport.update({
+  id: '/tv',
+  path: '/tv',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedOrgGabineteRoute =
+  AuthenticatedOrgGabineteRouteImport.update({
+    id: '/org/gabinete',
+    path: '/org/gabinete',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedOrgRecepcaoRoute =
+  AuthenticatedOrgRecepcaoRouteImport.update({
+    id: '/org/recepcao',
+    path: '/org/recepcao',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/espera': typeof EsperaRoute
+  '/login': typeof LoginRoute
+  '/quiosque': typeof QuiosqueRoute
+  '/tv': typeof TvRoute
+  '/org/gabinete': typeof AuthenticatedOrgGabineteRoute
+  '/org/recepcao': typeof AuthenticatedOrgRecepcaoRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/espera': typeof EsperaRoute
+  '/login': typeof LoginRoute
+  '/quiosque': typeof QuiosqueRoute
+  '/tv': typeof TvRoute
+  '/org/gabinete': typeof AuthenticatedOrgGabineteRoute
+  '/org/recepcao': typeof AuthenticatedOrgRecepcaoRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/espera': typeof EsperaRoute
+  '/login': typeof LoginRoute
+  '/quiosque': typeof QuiosqueRoute
+  '/tv': typeof TvRoute
+  '/_authenticated/org/gabinete': typeof AuthenticatedOrgGabineteRoute
+  '/_authenticated/org/recepcao': typeof AuthenticatedOrgRecepcaoRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/espera'
+    | '/login'
+    | '/quiosque'
+    | '/tv'
+    | '/org/gabinete'
+    | '/org/recepcao'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/espera'
+    | '/login'
+    | '/quiosque'
+    | '/tv'
+    | '/org/gabinete'
+    | '/org/recepcao'
+  id:
+    | '__root__'
+    | '/'
+    | '/_authenticated'
+    | '/espera'
+    | '/login'
+    | '/quiosque'
+    | '/tv'
+    | '/_authenticated/org/gabinete'
+    | '/_authenticated/org/recepcao'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  EsperaRoute: typeof EsperaRoute
+  LoginRoute: typeof LoginRoute
+  QuiosqueRoute: typeof QuiosqueRoute
+  TvRoute: typeof TvRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +138,78 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/espera': {
+      id: '/espera'
+      path: '/espera'
+      fullPath: '/espera'
+      preLoaderRoute: typeof EsperaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/quiosque': {
+      id: '/quiosque'
+      path: '/quiosque'
+      fullPath: '/quiosque'
+      preLoaderRoute: typeof QuiosqueRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tv': {
+      id: '/tv'
+      path: '/tv'
+      fullPath: '/tv'
+      preLoaderRoute: typeof TvRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/org/gabinete': {
+      id: '/_authenticated/org/gabinete'
+      path: '/org/gabinete'
+      fullPath: '/org/gabinete'
+      preLoaderRoute: typeof AuthenticatedOrgGabineteRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/org/recepcao': {
+      id: '/_authenticated/org/recepcao'
+      path: '/org/recepcao'
+      fullPath: '/org/recepcao'
+      preLoaderRoute: typeof AuthenticatedOrgRecepcaoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
+interface AuthenticatedRouteRouteChildren {
+  AuthenticatedOrgGabineteRoute: typeof AuthenticatedOrgGabineteRoute
+  AuthenticatedOrgRecepcaoRoute: typeof AuthenticatedOrgRecepcaoRoute
+}
+
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedOrgGabineteRoute: AuthenticatedOrgGabineteRoute,
+  AuthenticatedOrgRecepcaoRoute: AuthenticatedOrgRecepcaoRoute,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  EsperaRoute: EsperaRoute,
+  LoginRoute: LoginRoute,
+  QuiosqueRoute: QuiosqueRoute,
+  TvRoute: TvRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
