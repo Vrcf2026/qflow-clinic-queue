@@ -1,9 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 
 import { supabase } from "@/integrations/supabase/client";
 import {
-  dayStart,
   ROLE_PRIORITY,
   type AppRole,
   type Cabinet,
@@ -21,6 +20,12 @@ export type SessionState = {
   org: Org | null;
   roles: AppRole[];
   primaryRole: AppRole | null;
+  /** Start of the current service day, computed on the server in the org timezone. */
+  dayStart: string | null;
+  /** serverNow - clientNow, in ms. Used so screens never trust the local clock. */
+  offsetMs: number;
+  /** Signed in but without an active profile / role. */
+  noAccess: boolean;
 };
 
 const emptySession: SessionState = {
@@ -30,9 +35,21 @@ const emptySession: SessionState = {
   org: null,
   roles: [],
   primaryRole: null,
+  dayStart: null,
+  offsetMs: 0,
+  noAccess: false,
 };
 
-export function useSession(): SessionState & { reload: () => void } {
+type AccessPayload = {
+  error?: string;
+  profile?: Profile;
+  org?: Org | null;
+  roles?: string[];
+  server_now?: string;
+  day_start?: string | null;
+};
+
+export function useSession(): SessionState & { reload: () => void; now: () => Date } {
   const [state, setState] = useState<SessionState>(emptySession);
   const [tick, setTick] = useState(0);
 
@@ -40,28 +57,31 @@ export function useSession(): SessionState & { reload: () => void } {
     let cancelled = false;
 
     const load = async () => {
+      const sentAt = Date.now();
       const { data } = await supabase.auth.getUser();
       const user = data.user ?? null;
       if (!user) {
         if (!cancelled) setState({ ...emptySession, loading: false });
         return;
       }
-      const [{ data: profile }, { data: roleRows }] = await Promise.all([
-        supabase.from("profiles").select("*").eq("id", user.id).maybeSingle(),
-        supabase.from("user_roles").select("role").eq("user_id", user.id),
-      ]);
-      let org: Org | null = null;
-      if (profile?.org_id) {
-        const { data: orgRow } = await supabase
-          .from("organizations")
-          .select("*")
-          .eq("id", profile.org_id)
-          .maybeSingle();
-        org = orgRow ?? null;
-      }
-      const roles = (roleRows ?? []).map((r) => r.role as AppRole);
-      const primaryRole = ROLE_PRIORITY.find((r) => roles.includes(r)) ?? null;
-      if (!cancelled) setState({ loading: false, user, profile: profile ?? null, org, roles, primaryRole });
+      const { data: raw } = await supabase.rpc("my_access");
+      const access = (raw ?? {}) as AccessPayload;
+      const offsetMs = access.server_now
+        ? new Date(access.server_now).getTime() - (sentAt + Date.now()) / 2
+        : 0;
+      const roles = (access.roles ?? []) as AppRole[];
+      if (cancelled) return;
+      setState({
+        loading: false,
+        user,
+        profile: access.profile ?? null,
+        org: access.org ?? null,
+        roles,
+        primaryRole: ROLE_PRIORITY.find((r) => roles.includes(r)) ?? null,
+        dayStart: access.day_start ?? null,
+        offsetMs,
+        noAccess: Boolean(access.error) || !access.profile,
+      });
     };
 
     void load();
@@ -79,7 +99,20 @@ export function useSession(): SessionState & { reload: () => void } {
     return () => data.subscription.unsubscribe();
   }, []);
 
-  return { ...state, reload: () => setTick((t) => t + 1) };
+  const now = useCallback(() => new Date(Date.now() + state.offsetMs), [state.offsetMs]);
+
+  return { ...state, reload: () => setTick((t) => t + 1), now };
+}
+
+/** Ticking clock aligned with the server (offset in ms). */
+export function useClock(offsetMs: number, intervalMs = 1000): Date {
+  const [value, setValue] = useState(() => new Date(Date.now() + offsetMs));
+  useEffect(() => {
+    setValue(new Date(Date.now() + offsetMs));
+    const id = setInterval(() => setValue(new Date(Date.now() + offsetMs)), intervalMs);
+    return () => clearInterval(id);
+  }, [offsetMs, intervalMs]);
+  return value;
 }
 
 export type OrgLive = {
@@ -92,8 +125,11 @@ export type OrgLive = {
   lastCall: Ticket | null;
 };
 
-/** Loads today's org state and keeps it in sync with realtime ticket changes. */
-export function useOrgLive(orgId?: string | null, resetTime = "08:00"): OrgLive {
+/**
+ * Loads the org state for the current service day (boundary computed on the server)
+ * and keeps it in sync through realtime ticket changes.
+ */
+export function useOrgLive(orgId?: string | null, dayStart?: string | null): OrgLive {
   const [loading, setLoading] = useState(true);
   const [queues, setQueues] = useState<Queue[]>([]);
   const [desks, setDesks] = useState<Desk[]>([]);
@@ -102,8 +138,7 @@ export function useOrgLive(orgId?: string | null, resetTime = "08:00"): OrgLive 
   const [lastCall, setLastCall] = useState<Ticket | null>(null);
 
   const load = useCallback(async () => {
-    if (!orgId) return;
-    const since = dayStart(resetTime).toISOString();
+    if (!orgId || !dayStart) return;
     const [q, d, c, t] = await Promise.all([
       supabase.from("queues").select("*").eq("org_id", orgId).order("order"),
       supabase.from("desks").select("*").eq("org_id", orgId).order("name"),
@@ -112,7 +147,7 @@ export function useOrgLive(orgId?: string | null, resetTime = "08:00"): OrgLive 
         .from("tickets")
         .select("*")
         .eq("org_id", orgId)
-        .gte("created_at", since)
+        .gte("created_at", dayStart)
         .order("created_at", { ascending: true }),
     ]);
     setQueues(q.data ?? []);
@@ -120,7 +155,7 @@ export function useOrgLive(orgId?: string | null, resetTime = "08:00"): OrgLive 
     setCabinets(c.data ?? []);
     setTickets(t.data ?? []);
     setLoading(false);
-  }, [orgId, resetTime]);
+  }, [orgId, dayStart]);
 
   useEffect(() => {
     void load();
@@ -165,5 +200,8 @@ export function useOrgLive(orgId?: string | null, resetTime = "08:00"): OrgLive 
     };
   }, [orgId, load]);
 
-  return { loading, queues, desks, cabinets, tickets, refresh: () => void load(), lastCall };
+  return useMemo(
+    () => ({ loading, queues, desks, cabinets, tickets, refresh: () => void load(), lastCall }),
+    [loading, queues, desks, cabinets, tickets, load, lastCall],
+  );
 }

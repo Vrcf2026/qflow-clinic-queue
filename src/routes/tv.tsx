@@ -3,24 +3,25 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Volume2, VolumeX } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
-import { parseM3U, speakCall, timeLisbon, tvConfig, type Org } from "@/lib/qflow";
+import { clockLisbon, parseM3U, speakCall, timeLisbon, tvConfig, type Org } from "@/lib/qflow";
 
-type TvQueue = { id: string; name: string; name_en: string | null; prefix: string; color: string };
-type TvTicket = {
+type TvQueueState = {
   id: string;
-  queue_id: string;
-  full_ticket: string;
-  priority: boolean;
-  status: string;
-  desk_id: string | null;
-  cabinet_id: string | null;
-  lang_used: string;
-  created_at: string;
-  called_at: string | null;
+  name: string;
+  name_en: string | null;
+  color: string;
+  waiting: number;
+  current: { full_ticket: string; destination: string | null } | null;
+  next: string[];
 };
 
-const TICKET_COLUMNS =
-  "id,queue_id,full_ticket,priority,status,desk_id,cabinet_id,lang_used,created_at,called_at";
+type TvCall = {
+  id: string;
+  full_ticket: string;
+  destination: string | null;
+  called_at: string;
+  lang: string;
+};
 
 export const Route = createFileRoute("/tv")({
   ssr: false,
@@ -28,6 +29,7 @@ export const Route = createFileRoute("/tv")({
   head: () => ({
     meta: [
       { title: "Painel de chamadas | QFlow" },
+      { name: "robots", content: "noindex, nofollow" },
       {
         name: "description",
         content: "Painel de TV com chamadas de senhas, anúncio por voz e vídeo para salas de espera.",
@@ -42,96 +44,96 @@ export const Route = createFileRoute("/tv")({
 function TvPanel() {
   const { token } = Route.useSearch();
   const [org, setOrg] = useState<Org | null>(null);
-  const [queues, setQueues] = useState<TvQueue[]>([]);
-  const [tickets, setTickets] = useState<TvTicket[]>([]);
-  const [places, setPlaces] = useState<Record<string, string>>({});
+  const [queues, setQueues] = useState<TvQueueState[]>([]);
+  const [calls, setCalls] = useState<TvCall[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [offsetMs, setOffsetMs] = useState(0);
   const [clock, setClock] = useState(() => new Date());
-  const [overlay, setOverlay] = useState<TvTicket | null>(null);
+  const [overlay, setOverlay] = useState<TvCall | null>(null);
   const [channels, setChannels] = useState<{ name: string; url: string }[]>([]);
   const [channel, setChannel] = useState<string>("");
   const [muted, setMuted] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const seenCall = useRef<string | null>(null);
+  const bootstrapped = useRef(false);
 
   const cfg = useMemo(() => tvConfig(org), [org]);
-  const orgId = org?.id;
+  const timezone = org?.timezone ?? "Europe/Lisbon";
 
-  const loadContext = useCallback(async () => {
-    if (!token) return setError("Token do dispositivo em falta.");
-    const { data, error: rpcError } = await supabase.rpc("device_context", { p_token: token });
-    const payload = data as unknown as { org: Org; queues: TvQueue[]; error?: string } | null;
-    if (rpcError || !payload || payload.error) return setError("Dispositivo de TV não autorizado.");
-    setOrg(payload.org);
-    setQueues(payload.queues);
+  // Device bootstrap: branding, TV configuration and the authoritative clock.
+  useEffect(() => {
+    if (!token) {
+      setError("Token do dispositivo em falta.");
+      return;
+    }
+    void (async () => {
+      const sentAt = Date.now();
+      const { data, error: rpcError } = await supabase.rpc("device_context", { p_token: token });
+      const payload = data as unknown as { org: Org; server_now?: string; error?: string } | null;
+      if (rpcError || !payload || payload.error) {
+        setError("Dispositivo de TV não autorizado.");
+        return;
+      }
+      setOrg(payload.org);
+      if (payload.server_now) {
+        setOffsetMs(new Date(payload.server_now).getTime() - (sentAt + Date.now()) / 2);
+      }
+    })();
+  }, [token]);
+
+  // Live state: server-side aggregation, polled (device sessions are anonymous).
+  const loadState = useCallback(async () => {
+    if (!token) return;
+    const { data } = await supabase.rpc("tv_state", { p_token: token });
+    const payload = data as unknown as
+      | { queues: TvQueueState[]; recent_calls: TvCall[]; server_now: string; error?: string }
+      | null;
+    if (!payload || payload.error) return;
+    setQueues(payload.queues ?? []);
+    setCalls(payload.recent_calls ?? []);
+    const latest = payload.recent_calls?.[0] ?? null;
+    if (!bootstrapped.current) {
+      seenCall.current = latest?.id ?? null;
+      bootstrapped.current = true;
+    } else if (latest && latest.id !== seenCall.current) {
+      seenCall.current = latest.id;
+      setOverlay(latest);
+    }
   }, [token]);
 
   useEffect(() => {
-    void loadContext();
-  }, [loadContext]);
-
-  const loadTickets = useCallback(async () => {
-    if (!orgId) return;
-    const since = new Date(Date.now() - 20 * 3600 * 1000).toISOString();
-    const [t, d, c] = await Promise.all([
-      supabase
-        .from("tickets")
-        .select(TICKET_COLUMNS)
-        .eq("org_id", orgId)
-        .gte("created_at", since)
-        .order("created_at"),
-      supabase.from("desks").select("id,name").eq("org_id", orgId),
-      supabase.from("cabinets").select("id,name").eq("org_id", orgId),
-    ]);
-    setTickets((t.data ?? []) as TvTicket[]);
-    const map: Record<string, string> = {};
-    for (const row of d.data ?? []) map[row.id] = row.name;
-    for (const row of c.data ?? []) map[row.id] = row.name;
-    setPlaces(map);
-  }, [orgId]);
-
-  useEffect(() => {
-    void loadTickets();
-    const id = setInterval(() => void loadTickets(), 8000);
+    void loadState();
+    const id = setInterval(() => void loadState(), 3000);
     return () => clearInterval(id);
-  }, [loadTickets]);
+  }, [loadState]);
 
-  // Clock
+  // Clock aligned with the server, resynced regularly.
   useEffect(() => {
-    const id = setInterval(() => setClock(new Date()), 1000);
+    setClock(new Date(Date.now() + offsetMs));
+    const id = setInterval(() => setClock(new Date(Date.now() + offsetMs)), 1000);
     return () => clearInterval(id);
-  }, []);
+  }, [offsetMs]);
 
-  // Realtime calls
   useEffect(() => {
-    if (!orgId) return;
-    const channelSub = supabase
-      .channel(`org-tv:${orgId}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "tickets", filter: `org_id=eq.${orgId}` },
-        (payload) => {
-          const row = payload.new as TvTicket | undefined;
-          void loadTickets();
-          const previous = payload.old as TvTicket | undefined;
-          if (row && row.status === "chamado" && previous?.status !== "chamado") {
-            setOverlay(row);
-          }
-        },
-      )
-      .subscribe();
-    return () => {
-      void supabase.removeChannel(channelSub);
-    };
-  }, [orgId, loadTickets]);
+    if (!token) return;
+    const id = setInterval(() => {
+      void (async () => {
+        const sentAt = Date.now();
+        const { data } = await supabase.rpc("tv_state", { p_token: token });
+        const payload = data as unknown as { server_now?: string } | null;
+        if (payload?.server_now) {
+          setOffsetMs(new Date(payload.server_now).getTime() - (sentAt + Date.now()) / 2);
+        }
+      })();
+    }, 300000);
+    return () => clearInterval(id);
+  }, [token]);
 
-  // Overlay + voice announcement
+  // Call overlay + voice announcement
   useEffect(() => {
     if (!overlay) return;
-    const destination =
-      (overlay.desk_id && places[overlay.desk_id]) ||
-      (overlay.cabinet_id && places[overlay.cabinet_id]) ||
-      "Balcão";
-    const lang = overlay.lang_used === "en" ? "en" : (org?.voice_lang === "en" ? "en" : "pt");
+    const destination = overlay.destination ?? "Balcão";
+    const lang = overlay.lang === "en" ? "en" : org?.voice_lang === "en" ? "en" : "pt";
     const video = videoRef.current;
     const restore = video && !video.muted;
     if (cfg.silenciar_em_chamada && video) video.muted = true;
@@ -141,9 +143,9 @@ function TvPanel() {
       if (restore && video) video.muted = muted;
     }, 6000);
     return () => clearTimeout(id);
-  }, [overlay, places, org?.voice_lang, cfg.silenciar_em_chamada, muted]);
+  }, [overlay, org?.voice_lang, cfg.silenciar_em_chamada, muted]);
 
-  // M3U channels
+  // M3U channel list
   useEffect(() => {
     const url = cfg.m3u_url;
     if (!url) return;
@@ -194,37 +196,8 @@ function TvPanel() {
     return () => hls?.destroy();
   }, [source, cfg.volume, muted]);
 
-  const modules = (org?.modules_enabled ?? {}) as { iptv?: boolean };
-  const showVideo = !!modules.iptv && cfg.layout !== "sem_video" && !!source;
-
-  const byQueue = useMemo(() => {
-    return queues.map((q) => {
-      const qt = tickets.filter((t) => t.queue_id === q.id);
-      const serving = qt
-        .filter((t) => t.status === "chamado" || t.status === "em_atendimento")
-        .sort((a, b) => (b.called_at ?? "").localeCompare(a.called_at ?? ""))[0];
-      const next = qt
-        .filter((t) => t.status === "em_espera")
-        .sort((a, b) =>
-          a.priority === b.priority
-            ? a.created_at.localeCompare(b.created_at)
-            : a.priority
-              ? -1
-              : 1,
-        )
-        .slice(0, 2);
-      return { queue: q, serving, next };
-    });
-  }, [queues, tickets]);
-
-  const recent = useMemo(
-    () =>
-      tickets
-        .filter((t) => t.called_at)
-        .sort((a, b) => (b.called_at ?? "").localeCompare(a.called_at ?? ""))
-        .slice(0, 8),
-    [tickets],
-  );
+  const mods = (org?.modules_enabled ?? {}) as { iptv?: boolean };
+  const showVideo = !!mods.iptv && cfg.layout !== "sem_video" && !!source;
 
   if (error) {
     return (
@@ -241,13 +214,7 @@ function TvPanel() {
           {org?.logo_url ? <img src={org.logo_url} alt="" className="h-10 w-auto" /> : null}
           <span className="font-display text-2xl font-bold">{org?.name ?? "QFlow"}</span>
         </div>
-        <span className="ticket-number text-4xl">
-          {new Intl.DateTimeFormat("pt-PT", {
-            hour: "2-digit",
-            minute: "2-digit",
-            timeZone: "Europe/Lisbon",
-          }).format(clock)}
-        </span>
+        <span className="ticket-number text-4xl">{clockLisbon(clock, timezone)}</span>
       </header>
 
       <div className="flex min-h-0 flex-1 gap-6 px-8 pb-4">
@@ -279,27 +246,21 @@ function TvPanel() {
         )}
 
         <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden">
-          {byQueue.map(({ queue, serving, next }) => (
-            <div key={queue.id} className="rounded-2xl bg-tv-panel px-6 py-4">
+          {queues.map((q) => (
+            <div key={q.id} className="rounded-2xl bg-tv-panel px-6 py-4">
               <div className="flex items-center justify-between">
-                <span className="text-lg font-semibold" style={{ color: queue.color }}>
-                  {queue.name}
+                <span className="text-lg font-semibold" style={{ color: q.color }}>
+                  {q.name}
                 </span>
                 <span className="text-sm text-tv-muted">
-                  {next.length > 0 ? `Próximas: ${next.map((n) => n.full_ticket).join(" · ")}` : "Sem espera"}
+                  {q.next.length > 0 ? `Próximas: ${q.next.join(" · ")}` : "Sem espera"}
                 </span>
               </div>
               <div className="mt-1 flex items-baseline justify-between">
                 <span className={showVideo ? "ticket-number text-5xl" : "ticket-number text-7xl"}>
-                  {serving?.full_ticket ?? "—"}
+                  {q.current?.full_ticket ?? "—"}
                 </span>
-                <span className="text-xl text-tv-accent">
-                  {serving
-                    ? (serving.desk_id && places[serving.desk_id]) ||
-                      (serving.cabinet_id && places[serving.cabinet_id]) ||
-                      ""
-                    : ""}
-                </span>
+                <span className="text-xl text-tv-accent">{q.current?.destination ?? ""}</span>
               </div>
             </div>
           ))}
@@ -307,16 +268,16 @@ function TvPanel() {
       </div>
 
       <footer className="flex items-center gap-8 overflow-hidden border-t border-white/10 px-8 py-3 text-lg text-tv-muted">
-        {recent.length === 0 ? (
+        {calls.length === 0 ? (
           <span>Sem chamadas ainda hoje</span>
         ) : (
-          recent.map((t) => (
-            <span key={t.id} className="whitespace-nowrap">
-              <span className="ticket-number text-tv-foreground">{t.full_ticket}</span>
+          calls.slice(0, 8).map((c) => (
+            <span key={c.id} className="whitespace-nowrap">
+              <span className="ticket-number text-tv-foreground">{c.full_ticket}</span>
               {" · "}
-              {(t.desk_id && places[t.desk_id]) || (t.cabinet_id && places[t.cabinet_id]) || "Balcão"}
+              {c.destination ?? "Balcão"}
               {" · "}
-              {timeLisbon(t.called_at)}
+              {timeLisbon(c.called_at, timezone)}
             </span>
           ))
         )}
@@ -325,16 +286,12 @@ function TvPanel() {
       {overlay && (
         <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-tv/95 backdrop-blur">
           <p className="text-3xl font-semibold text-tv-muted">
-            {overlay.lang_used === "en" ? "Ticket" : "Senha"}
+            {overlay.lang === "en" ? "Ticket" : "Senha"}
           </p>
           <p className="ticket-number mt-4 text-[14rem] leading-none text-tv-foreground">
             {overlay.full_ticket}
           </p>
-          <p className="mt-6 text-5xl font-bold text-tv-accent">
-            {(overlay.desk_id && places[overlay.desk_id]) ||
-              (overlay.cabinet_id && places[overlay.cabinet_id]) ||
-              ""}
-          </p>
+          <p className="mt-6 text-5xl font-bold text-tv-accent">{overlay.destination ?? ""}</p>
         </div>
       )}
     </main>

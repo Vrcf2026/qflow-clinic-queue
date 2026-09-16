@@ -106,22 +106,23 @@ export function queueIds(row?: { queue_ids: unknown } | null): string[] {
   return Array.isArray(v) ? (v as string[]) : [];
 }
 
-/** Start of the current service day, based on the org reset time (local clock). */
-export function dayStart(resetTime = "08:00"): Date {
-  const [h, m] = resetTime.split(":").map((n) => Number(n) || 0);
-  const d = new Date();
-  d.setHours(h ?? 0, m ?? 0, 0, 0);
-  if (d.getTime() > Date.now()) d.setDate(d.getDate() - 1);
-  return d;
-}
-
-export function timeLisbon(value?: string | null): string {
+/** Formats an instant in a given timezone (defaults to the Portuguese clinic timezone). */
+export function timeLisbon(value?: string | Date | null, timeZone = "Europe/Lisbon"): string {
   if (!value) return "--:--";
   return new Intl.DateTimeFormat("pt-PT", {
     hour: "2-digit",
     minute: "2-digit",
-    timeZone: "Europe/Lisbon",
-  }).format(new Date(value));
+    timeZone,
+  }).format(typeof value === "string" ? new Date(value) : value);
+}
+
+export function clockLisbon(value: Date, timeZone = "Europe/Lisbon"): string {
+  return new Intl.DateTimeFormat("pt-PT", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    timeZone,
+  }).format(value);
 }
 
 export function waitingColor(count: number): string {
@@ -130,15 +131,35 @@ export function waitingColor(count: number): string {
   return "bg-success text-success-foreground";
 }
 
-export function minutesSince(value?: string | null): number {
+/** Minutes elapsed since an instant, measured against the server-aligned clock. */
+export function minutesSince(value?: string | null, now: number = Date.now()): number {
   if (!value) return 0;
-  return Math.max(0, Math.round((Date.now() - new Date(value).getTime()) / 60000));
+  return Math.max(0, Math.round((now - new Date(value).getTime()) / 60000));
 }
 
-/** Sort helper: priority tickets first, then FIFO. */
+/** Sort helper: priority first, then the server ordering key (moves when skipped). */
 export function queueOrder(a: Ticket, b: Ticket): number {
   if (a.priority !== b.priority) return a.priority ? -1 : 1;
-  return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+  const ak = a.sort_at ?? a.created_at;
+  const bk = b.sort_at ?? b.created_at;
+  return new Date(ak).getTime() - new Date(bk).getTime();
+}
+
+export const EVENT_LABELS: Record<string, string> = {
+  emitida: "Emitida",
+  chamada: "Chamada",
+  rechamada: "Re-chamada",
+  saltada: "Saltada",
+  faltou: "Faltou",
+  recuperada: "Recuperada",
+  admitida: "Admitida",
+  em_atendimento: "Em atendimento",
+  concluida: "Concluída",
+};
+
+/** Ordered list of queue ids a desk/cabinet serves (order = calling preference). */
+export function orderedQueueIds(row?: { queue_ids: unknown } | null): string[] {
+  return queueIds(row);
 }
 
 let voices: SpeechSynthesisVoice[] = [];

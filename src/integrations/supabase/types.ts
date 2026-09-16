@@ -179,12 +179,15 @@ export type Database = {
           id: string
           kiosk_languages: Json
           logo_url: string | null
+          max_skips: number
+          missed_recovery_minutes: number
           modules_enabled: Json
           name: string
           plan: Database["public"]["Enums"]["org_plan"]
           primary_color: string
           reset_time: string
           secondary_color: string
+          skip_reinsert_after: number
           slug: string
           timezone: string
           tv_config: Json
@@ -195,12 +198,15 @@ export type Database = {
           id?: string
           kiosk_languages?: Json
           logo_url?: string | null
+          max_skips?: number
+          missed_recovery_minutes?: number
           modules_enabled?: Json
           name: string
           plan?: Database["public"]["Enums"]["org_plan"]
           primary_color?: string
           reset_time?: string
           secondary_color?: string
+          skip_reinsert_after?: number
           slug: string
           timezone?: string
           tv_config?: Json
@@ -211,12 +217,15 @@ export type Database = {
           id?: string
           kiosk_languages?: Json
           logo_url?: string | null
+          max_skips?: number
+          missed_recovery_minutes?: number
           modules_enabled?: Json
           name?: string
           plan?: Database["public"]["Enums"]["org_plan"]
           primary_color?: string
           reset_time?: string
           secondary_color?: string
+          skip_reinsert_after?: number
           slug?: string
           timezone?: string
           tv_config?: Json
@@ -318,6 +327,57 @@ export type Database = {
           },
         ]
       }
+      ticket_events: {
+        Row: {
+          actor_user_id: string | null
+          created_at: string
+          detail: Json
+          device_id: string | null
+          event: string
+          full_ticket: string
+          id: string
+          org_id: string
+          ticket_id: string | null
+        }
+        Insert: {
+          actor_user_id?: string | null
+          created_at?: string
+          detail?: Json
+          device_id?: string | null
+          event: string
+          full_ticket: string
+          id?: string
+          org_id: string
+          ticket_id?: string | null
+        }
+        Update: {
+          actor_user_id?: string | null
+          created_at?: string
+          detail?: Json
+          device_id?: string | null
+          event?: string
+          full_ticket?: string
+          id?: string
+          org_id?: string
+          ticket_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_events_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ticket_events_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tickets: {
         Row: {
           cabinet_id: string | null
@@ -329,12 +389,16 @@ export type Database = {
           full_ticket: string
           id: string
           lang_used: string
+          last_skipped_at: string | null
           number: number
           org_id: string
           patient_name: string | null
           patient_utente: string | null
           priority: boolean
           queue_id: string
+          recall_count: number
+          skip_count: number
+          sort_at: string
           status: Database["public"]["Enums"]["ticket_status"]
         }
         Insert: {
@@ -347,12 +411,16 @@ export type Database = {
           full_ticket: string
           id?: string
           lang_used?: string
+          last_skipped_at?: string | null
           number: number
           org_id: string
           patient_name?: string | null
           patient_utente?: string | null
           priority?: boolean
           queue_id: string
+          recall_count?: number
+          skip_count?: number
+          sort_at?: string
           status?: Database["public"]["Enums"]["ticket_status"]
         }
         Update: {
@@ -365,12 +433,16 @@ export type Database = {
           full_ticket?: string
           id?: string
           lang_used?: string
+          last_skipped_at?: string | null
           number?: number
           org_id?: string
           patient_name?: string | null
           patient_utente?: string | null
           priority?: boolean
           queue_id?: string
+          recall_count?: number
+          skip_count?: number
+          sort_at?: string
           status?: Database["public"]["Enums"]["ticket_status"]
         }
         Relationships: [
@@ -438,8 +510,21 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      bootstrap_access: { Args: never; Returns: Json }
+      admit_ticket: {
+        Args: { p_name: string; p_ticket_id: string; p_utente?: string }
+        Returns: Json
+      }
+      call_ticket: {
+        Args: {
+          p_cabinet_id?: string
+          p_desk_id?: string
+          p_recall?: boolean
+          p_ticket_id: string
+        }
+        Returns: Json
+      }
       device_context: { Args: { p_token: string }; Returns: Json }
+      finish_ticket: { Args: { p_ticket_id: string }; Returns: Json }
       issue_ticket: {
         Args: {
           p_lang?: string
@@ -449,7 +534,21 @@ export type Database = {
         }
         Returns: Json
       }
+      miss_ticket: { Args: { p_ticket_id: string }; Returns: Json }
+      my_access: { Args: never; Returns: Json }
+      next_ticket_for_desk: { Args: { p_desk_id: string }; Returns: Json }
+      org_clock: { Args: never; Returns: Json }
+      org_stats: {
+        Args: { p_from: string; p_org?: string; p_to: string }
+        Returns: Json
+      }
+      platform_stats: { Args: { p_from: string; p_to: string }; Returns: Json }
+      recover_ticket: { Args: { p_ticket_id: string }; Returns: Json }
+      reset_service_day: { Args: never; Returns: Json }
+      skip_ticket: { Args: { p_ticket_id: string }; Returns: Json }
+      start_service: { Args: { p_ticket_id: string }; Returns: Json }
       ticket_status: { Args: { p_ticket_id: string }; Returns: Json }
+      tv_state: { Args: { p_token: string }; Returns: Json }
     }
     Enums: {
       app_role:
