@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useOrgLive, useSession } from "@/hooks/use-qflow";
 import {
-  modules,
   queueIds,
   queueOrder,
   STATUS_LABELS,
@@ -30,9 +29,15 @@ export const Route = createFileRoute("/_authenticated/org/recepcao")({
     meta: [
       { title: "Receção | QFlow" },
       { name: "robots", content: "noindex, nofollow" },
-      { name: "description", content: "Chamada de senhas e admissão de doentes na receção da clínica." },
+      {
+        name: "description",
+        content: "Chamada de senhas e admissão de doentes na receção da clínica.",
+      },
       { property: "og:title", content: "Receção | QFlow" },
-      { property: "og:description", content: "Chamar senhas, registar doentes e acompanhar as filas." },
+      {
+        property: "og:description",
+        content: "Chamar senhas, registar doentes e acompanhar as filas.",
+      },
     ],
   }),
   component: Recepcao,
@@ -46,8 +51,6 @@ function Recepcao() {
   const [utente, setUtente] = useState("");
   const [lastCalled, setLastCalled] = useState<Ticket | null>(null);
 
-  const mods = modules(session.org);
-
   useEffect(() => {
     if (deskId) return;
     const desks = live.desks.filter((d) => d.active);
@@ -55,6 +58,15 @@ function Recepcao() {
   }, [deskId, live.desks, session.profile?.desk_id]);
 
   const desk = live.desks.find((d) => d.id === deskId) ?? null;
+
+  /**
+   * O balcão (e as filas que ele atende) é definido pelo chefe de turno ou pela
+   * administração. O recepcionista só pode trocar de balcão se não tiver balcão
+   * atribuído no perfil ou se tiver permissões de gestão.
+   */
+  const canSwitchDesk =
+    !session.profile?.desk_id ||
+    session.roles.some((r) => r === "org_admin" || r === "chefe_turno" || r === "super_admin");
   const deskQueues = useMemo(() => {
     const ids = queueIds(desk);
     return live.queues.filter((q) => q.active && (ids.length === 0 || ids.includes(q.id)));
@@ -125,20 +137,26 @@ function Recepcao() {
       userName={session.profile?.name}
       primaryRole={session.primaryRole}
       actions={
-        mods.multi_balcao && live.desks.length > 0 ? (
+        live.desks.length > 0 ? (
           <div className="flex items-center gap-2">
             <Label className="text-sm text-muted-foreground">Balcão</Label>
-            <select
-              className="rounded-lg border bg-card px-3 py-2 text-sm font-medium"
-              value={deskId ?? ""}
-              onChange={(e) => setDeskId(e.target.value)}
-            >
-              {live.desks.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name}
-                </option>
-              ))}
-            </select>
+            {canSwitchDesk ? (
+              <select
+                className="rounded-lg border bg-card px-3 py-2 text-sm font-medium"
+                value={deskId ?? ""}
+                onChange={(e) => setDeskId(e.target.value)}
+              >
+                {live.desks.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <span className="rounded-lg border bg-muted px-3 py-2 text-sm font-semibold">
+                {desk?.name ?? "Sem balcão atribuído"}
+              </span>
+            )}
           </div>
         ) : null
       }
@@ -203,21 +221,31 @@ function Recepcao() {
           </div>
 
           <div className="rounded-2xl border bg-card p-5">
-            <h2 className="text-sm font-semibold text-muted-foreground">Filas</h2>
+            <h2 className="text-sm font-semibold text-muted-foreground">
+              Filas deste balcão · definidas pelo chefe de turno
+            </h2>
             <ul className="mt-3 space-y-2">
-              {live.queues
-                .filter((q) => q.active)
+              {[...deskQueues]
+                .sort((a, b) => rank(a.id) - rank(b.id))
                 .map((q) => {
                   const count = live.tickets.filter(
                     (t) => t.queue_id === q.id && t.status === "em_espera",
                   ).length;
                   return (
-                    <li key={q.id} className="flex items-center justify-between rounded-xl bg-muted px-4 py-3">
+                    <li
+                      key={q.id}
+                      className="flex items-center justify-between rounded-xl bg-muted px-4 py-3"
+                    >
                       <span className="flex items-center gap-3 font-medium">
-                        <span className="size-3 rounded-full" style={{ backgroundColor: q.color }} />
+                        <span
+                          className="size-3 rounded-full"
+                          style={{ backgroundColor: q.color }}
+                        />
                         {q.name}
                       </span>
-                      <span className={`rounded-lg px-2.5 py-1 text-sm font-semibold ${waitingColor(count)}`}>
+                      <span
+                        className={`rounded-lg px-2.5 py-1 text-sm font-semibold ${waitingColor(count)}`}
+                      >
                         {count}
                       </span>
                     </li>
@@ -236,7 +264,9 @@ function Recepcao() {
                 <p className="ticket-number mt-3 text-4xl text-primary">
                   {pendingAdmission.full_ticket}
                 </p>
-                <p className="text-sm text-muted-foreground">{queueName(pendingAdmission.queue_id)}</p>
+                <p className="text-sm text-muted-foreground">
+                  {queueName(pendingAdmission.queue_id)}
+                </p>
                 <div className="mt-4 space-y-3">
                   <div className="space-y-1.5">
                     <Label htmlFor="pname">Nome do doente</Label>
@@ -244,7 +274,11 @@ function Recepcao() {
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="putente">Nº de utente (opcional)</Label>
-                    <Input id="putente" value={utente} onChange={(e) => setUtente(e.target.value)} />
+                    <Input
+                      id="putente"
+                      value={utente}
+                      onChange={(e) => setUtente(e.target.value)}
+                    />
                   </div>
                   <Button
                     className="w-full"
@@ -304,9 +338,7 @@ function Recepcao() {
               {recent.map((t) => (
                 <li key={t.id} className="flex items-center justify-between py-2.5 text-sm">
                   <span className="ticket-number text-base">{t.full_ticket}</span>
-                  <span className="flex-1 px-3 text-muted-foreground">
-                    {t.patient_name ?? "—"}
-                  </span>
+                  <span className="flex-1 px-3 text-muted-foreground">{t.patient_name ?? "—"}</span>
                   <span className="text-muted-foreground">{STATUS_LABELS[t.status]}</span>
                   <span className="ml-3 tabular-nums text-muted-foreground">
                     {timeLisbon(t.called_at, session.org?.timezone ?? "Europe/Lisbon")}

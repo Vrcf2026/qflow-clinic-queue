@@ -14,6 +14,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as EsperaRouteImport } from './routes/espera'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as QuiosqueRouteImport } from './routes/quiosque'
+import { Route as SetupRouteImport } from './routes/setup'
 import { Route as TvRouteImport } from './routes/tv'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedOrgDashboardRouteImport } from './routes/_authenticated/org.dashboard'
@@ -43,6 +44,11 @@ const LoginRoute = LoginRouteImport.update({
 const QuiosqueRoute = QuiosqueRouteImport.update({
   id: '/quiosque',
   path: '/quiosque',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SetupRoute = SetupRouteImport.update({
+  id: '/setup',
+  path: '/setup',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TvRoute = TvRouteImport.update({
@@ -84,6 +90,7 @@ export interface FileRoutesByFullPath {
   '/espera': typeof EsperaRoute
   '/login': typeof LoginRoute
   '/quiosque': typeof QuiosqueRoute
+  '/setup': typeof SetupRoute
   '/tv': typeof TvRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/org/dashboard': typeof AuthenticatedOrgDashboardRoute
@@ -96,6 +103,7 @@ export interface FileRoutesByTo {
   '/espera': typeof EsperaRoute
   '/login': typeof LoginRoute
   '/quiosque': typeof QuiosqueRoute
+  '/setup': typeof SetupRoute
   '/tv': typeof TvRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/org/dashboard': typeof AuthenticatedOrgDashboardRoute
@@ -110,6 +118,7 @@ export interface FileRoutesById {
   '/espera': typeof EsperaRoute
   '/login': typeof LoginRoute
   '/quiosque': typeof QuiosqueRoute
+  '/setup': typeof SetupRoute
   '/tv': typeof TvRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/org/dashboard': typeof AuthenticatedOrgDashboardRoute
@@ -124,6 +133,7 @@ export interface FileRouteTypes {
     | '/espera'
     | '/login'
     | '/quiosque'
+    | '/setup'
     | '/tv'
     | '/admin'
     | '/org/dashboard'
@@ -136,6 +146,7 @@ export interface FileRouteTypes {
     | '/espera'
     | '/login'
     | '/quiosque'
+    | '/setup'
     | '/tv'
     | '/admin'
     | '/org/dashboard'
@@ -149,6 +160,7 @@ export interface FileRouteTypes {
     | '/espera'
     | '/login'
     | '/quiosque'
+    | '/setup'
     | '/tv'
     | '/_authenticated/admin'
     | '/_authenticated/org/dashboard'
@@ -163,6 +175,7 @@ export interface RootRouteChildren {
   EsperaRoute: typeof EsperaRoute
   LoginRoute: typeof LoginRoute
   QuiosqueRoute: typeof QuiosqueRoute
+  SetupRoute: typeof SetupRoute
   TvRoute: typeof TvRoute
 }
 
@@ -201,6 +214,13 @@ declare module '@tanstack/react-router' {
       path: '/quiosque'
       fullPath: '/quiosque'
       preLoaderRoute: typeof QuiosqueRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/setup': {
+      id: '/setup'
+      path: '/setup'
+      fullPath: '/setup'
+      preLoaderRoute: typeof SetupRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/tv': {
@@ -273,6 +293,7 @@ const rootRouteChildren: RootRouteChildren = {
   EsperaRoute: EsperaRoute,
   LoginRoute: LoginRoute,
   QuiosqueRoute: QuiosqueRoute,
+  SetupRoute: SetupRoute,
   TvRoute: TvRoute,
 }
 export const routeTree = rootRouteImport

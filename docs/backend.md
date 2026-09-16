@@ -62,3 +62,19 @@ Cada ação é uma função no servidor que valida permissão e grava histórico
 
 - Nomes de doentes e números de utente só são visíveis a contas ativas da própria clínica.
 - As páginas internas estão marcadas como não indexáveis e bloqueadas em `robots.txt`.
+
+## Quem define as filas de cada balcão
+
+A atribuição de filas a balcões e gabinetes (`desks.queue_ids`, `cabinets.queue_ids`)
+é escrita apenas por quem passa `private.can_manage_org_config()`: chefe de turno,
+administrador da clínica ou super administrador. O recepcionista lê essa
+configuração e não a pode alterar; se o perfil tiver `desk_id` definido, também não
+pode trocar de balcão no ecrã de receção. A ordem dos ids em `queue_ids` é a ordem
+de preferência de chamada.
+
+## Primeira conta
+
+`createFirstAdmin` (src/lib/bootstrap.functions.ts, página /setup) cria o primeiro
+super administrador e deixa de funcionar assim que existir qualquer papel atribuído.
+Depois disso, as contas são criadas por `createTeamMember` (super_admin para
+qualquer clínica; org_admin apenas na sua).
