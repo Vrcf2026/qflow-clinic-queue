@@ -46,7 +46,6 @@ function Recepcao() {
   const [utente, setUtente] = useState("");
   const [lastCalled, setLastCalled] = useState<Ticket | null>(null);
 
-  const mods = modules(session.org);
 
   useEffect(() => {
     if (deskId) return;
@@ -55,6 +54,15 @@ function Recepcao() {
   }, [deskId, live.desks, session.profile?.desk_id]);
 
   const desk = live.desks.find((d) => d.id === deskId) ?? null;
+
+  /**
+   * O balcão (e as filas que ele atende) é definido pelo chefe de turno ou pela
+   * administração. O recepcionista só pode trocar de balcão se não tiver balcão
+   * atribuído no perfil ou se tiver permissões de gestão.
+   */
+  const canSwitchDesk =
+    !session.profile?.desk_id ||
+    session.roles.some((r) => r === "org_admin" || r === "chefe_turno" || r === "super_admin");
   const deskQueues = useMemo(() => {
     const ids = queueIds(desk);
     return live.queues.filter((q) => q.active && (ids.length === 0 || ids.includes(q.id)));
@@ -210,10 +218,12 @@ function Recepcao() {
           </div>
 
           <div className="rounded-2xl border bg-card p-5">
-            <h2 className="text-sm font-semibold text-muted-foreground">Filas</h2>
+            <h2 className="text-sm font-semibold text-muted-foreground">
+              Filas deste balcão · definidas pelo chefe de turno
+            </h2>
             <ul className="mt-3 space-y-2">
-              {live.queues
-                .filter((q) => q.active)
+              {[...deskQueues]
+                .sort((a, b) => rank(a.id) - rank(b.id))
                 .map((q) => {
                   const count = live.tickets.filter(
                     (t) => t.queue_id === q.id && t.status === "em_espera",
