@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useOrgLive, useSession } from "@/hooks/use-qflow";
 import {
-  modules,
   queueIds,
   queueOrder,
   STATUS_LABELS,
