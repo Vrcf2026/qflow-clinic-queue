@@ -16,9 +16,15 @@ export const Route = createFileRoute("/_authenticated/org/turno")({
     meta: [
       { title: "Chefe de turno | QFlow" },
       { name: "robots", content: "noindex, nofollow" },
-      { name: "description", content: "Gestão do turno: filas ativas, balcões, gabinetes e reset do dia." },
+      {
+        name: "description",
+        content: "Gestão do turno: filas ativas, balcões, gabinetes e reset do dia.",
+      },
       { property: "og:title", content: "Chefe de turno | QFlow" },
-      { property: "og:description", content: "Ativar filas, atribuir balcões e acompanhar o atendimento ao vivo." },
+      {
+        property: "og:description",
+        content: "Ativar filas, atribuir balcões e acompanhar o atendimento ao vivo.",
+      },
     ],
   }),
   component: Turno,
@@ -103,7 +109,9 @@ function Turno() {
                   <span className="ml-auto text-sm text-muted-foreground">
                     {serving ? `Em atendimento ${serving.full_ticket}` : "Livre"}
                   </span>
-                  <span className={`rounded-lg px-2.5 py-1 text-sm font-semibold ${waitingColor(waiting)}`}>
+                  <span
+                    className={`rounded-lg px-2.5 py-1 text-sm font-semibold ${waitingColor(waiting)}`}
+                  >
                     {waiting}
                   </span>
                   <Switch checked={q.active} onCheckedChange={(v) => void toggleQueue(q.id, v)} />
@@ -116,6 +124,10 @@ function Turno() {
         <section className="space-y-6">
           <div className="rounded-2xl border bg-card p-5">
             <h2 className="text-lg font-semibold">Balcões</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Escolha aqui as filas de cada balcão (ex.: um balcão só de faturação). A ordem em que
+              as seleciona é a ordem de chamada. O recepcionista não pode alterar esta escolha.
+            </p>
             <ul className="mt-4 space-y-4">
               {live.desks.map((d) => (
                 <li key={d.id} className="rounded-xl bg-muted p-4">
@@ -153,6 +165,9 @@ function Turno() {
           {mods.gabinetes && (
             <div className="rounded-2xl border bg-card p-5">
               <h2 className="text-lg font-semibold">Gabinetes</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Filas de cada gabinete. O médico só vê as senhas do gabinete onde está atribuído.
+              </p>
               <ul className="mt-4 space-y-4">
                 {live.cabinets.map((c) => (
                   <li key={c.id} className="rounded-xl bg-muted p-4">
@@ -198,7 +213,9 @@ function Turno() {
                 <span
                   key={key}
                   className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${
-                    mods[key] ? "bg-success text-success-foreground" : "bg-muted text-muted-foreground"
+                    mods[key]
+                      ? "bg-success text-success-foreground"
+                      : "bg-muted text-muted-foreground"
                   }`}
                 >
                   {MODULE_LABELS[key]}
