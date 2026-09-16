@@ -31,12 +31,13 @@ function handle(data: unknown): Result {
 }
 
 export async function callTicket(ticket: Ticket, target: Target, recall = false) {
-  const { data } = await supabase.rpc("call_ticket", {
+  const args: { p_ticket_id: string; p_recall: boolean; p_desk_id?: string; p_cabinet_id?: string } = {
     p_ticket_id: ticket.id,
-    p_desk_id: target.deskId ?? undefined,
-    p_cabinet_id: target.cabinetId ?? undefined,
     p_recall: recall,
-  });
+  };
+  if (target.deskId) args.p_desk_id = target.deskId;
+  if (target.cabinetId) args.p_cabinet_id = target.cabinetId;
+  const { data } = await supabase.rpc("call_ticket", args);
   return handle(data);
 }
 
