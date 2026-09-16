@@ -16,7 +16,14 @@ import {
   waitingColor,
   type Ticket,
 } from "@/lib/qflow";
-import { admitTicket, callTicket, missTicket, recallTicket, skipTicket } from "@/lib/ticket-actions";
+import {
+  admitTicket,
+  callTicket,
+  missTicket,
+  recallTicket,
+  recoverTicket,
+  skipTicket,
+} from "@/lib/ticket-actions";
 
 export const Route = createFileRoute("/_authenticated/org/recepcao")({
   head: () => ({
@@ -53,17 +60,41 @@ function Recepcao() {
     return live.queues.filter((q) => q.active && (ids.length === 0 || ids.includes(q.id)));
   }, [desk, live.queues]);
 
+  /**
+   * A ordem de chamada segue a preferência de filas configurada para o balcão:
+   * a primeira fila da lista é servida antes das seguintes. Dentro de cada fila,
+   * senhas prioritárias primeiro e depois a ordem de chegada (com senhas
+   * saltadas a reentrar mais atrás).
+   */
+  const deskPreference = useMemo(() => queueIds(desk), [desk]);
+  const rank = (queueId: string) => {
+    const i = deskPreference.indexOf(queueId);
+    return i === -1 ? deskPreference.length : i;
+  };
+
   const waiting = useMemo(
     () =>
       live.tickets
         .filter((t) => t.status === "em_espera" && deskQueues.some((q) => q.id === t.queue_id))
-        .sort(queueOrder),
-    [live.tickets, deskQueues],
+        .sort((a, b) => rank(a.queue_id) - rank(b.queue_id) || queueOrder(a, b)),
+    [live.tickets, deskQueues, deskPreference],
   );
 
   const next = waiting[0] ?? null;
   const pendingAdmission = useMemo(
-    () => live.tickets.filter((t) => t.status !== "concluido" && !t.patient_name).sort(queueOrder)[0] ?? null,
+    () =>
+      live.tickets
+        .filter(
+          (t) =>
+            t.status !== "concluido" &&
+            !t.patient_name &&
+            deskQueues.some((q) => q.id === t.queue_id),
+        )
+        .sort((a, b) => rank(a.queue_id) - rank(b.queue_id) || queueOrder(a, b))[0] ?? null,
+    [live.tickets, deskQueues, deskPreference],
+  );
+  const missed = useMemo(
+    () => live.tickets.filter((t) => t.status === "faltou").sort(queueOrder),
     [live.tickets],
   );
   const recent = useMemo(
@@ -235,6 +266,34 @@ function Recepcao() {
               </p>
             )}
           </div>
+
+          {missed.length > 0 && (
+            <div className="rounded-2xl border bg-card p-5">
+              <h2 className="text-sm font-semibold text-muted-foreground">
+                Faltas recuperáveis ({session.org?.missed_recovery_minutes ?? 60} min)
+              </h2>
+              <ul className="mt-3 divide-y">
+                {missed.map((t) => (
+                  <li key={t.id} className="flex items-center justify-between py-2.5 text-sm">
+                    <span className="ticket-number text-base">{t.full_ticket}</span>
+                    <span className="flex-1 px-3 text-muted-foreground">
+                      {t.patient_name ?? queueName(t.queue_id)}
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={async () => {
+                        await recoverTicket(t);
+                        live.refresh();
+                      }}
+                    >
+                      Recuperar
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           <div className="rounded-2xl border bg-card p-5">
             <h2 className="text-sm font-semibold text-muted-foreground">Últimas chamadas</h2>
