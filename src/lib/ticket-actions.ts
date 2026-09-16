@@ -2,11 +2,11 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Ticket } from "@/lib/qflow";
 
 type Target = {
-  userId?: string | null;
-  deskId?: string | null;
-  deskName?: string | null;
-  cabinetId?: string | null;
-  cabinetName?: string | null;
+  userId?: string | null | undefined;
+  deskId?: string | null | undefined;
+  deskName?: string | null | undefined;
+  cabinetId?: string | null | undefined;
+  cabinetName?: string | null | undefined;
 };
 
 export async function callTicket(ticket: Ticket, target: Target) {

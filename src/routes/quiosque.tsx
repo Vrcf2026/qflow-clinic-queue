@@ -64,7 +64,7 @@ const T = {
 
 export const Route = createFileRoute("/quiosque")({
   ssr: false,
-  validateSearch: (search: Record<string, unknown>) => ({ token: String(search.token ?? "") }),
+  validateSearch: (search: Record<string, unknown>) => ({ token: String(search["token"] ?? "") }),
   head: () => ({
     meta: [
       { title: "Quiosque de senhas | QFlow" },

@@ -44,7 +44,7 @@ const T = {
 
 export const Route = createFileRoute("/espera")({
   ssr: false,
-  validateSearch: (search: Record<string, unknown>) => ({ ticket: String(search.ticket ?? "") }),
+  validateSearch: (search: Record<string, unknown>) => ({ ticket: String(search["ticket"] ?? "") }),
   head: () => ({
     meta: [
       { title: "A minha senha | QFlow" },
@@ -98,9 +98,10 @@ function WaitPage() {
     if (!called || announced.current || !state) return;
     announced.current = true;
     if (notify && "Notification" in window && Notification.permission === "granted") {
-      new Notification(`${state.ticket.full_ticket} — ${t.called}`, {
-        body: state.destination ? `${t.goTo} ${state.destination}` : undefined,
-      });
+      new Notification(
+        `${state.ticket.full_ticket} — ${t.called}`,
+        state.destination ? { body: `${t.goTo} ${state.destination}` } : {},
+      );
     }
   }, [called, notify, state, t]);
 

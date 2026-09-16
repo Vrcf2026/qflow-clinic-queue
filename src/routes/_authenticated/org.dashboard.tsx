@@ -115,8 +115,14 @@ function Dashboard() {
 
   const saveOrg = async (patch: Record<string, unknown>) => {
     if (!orgId) return;
-    const { error } = await supabase.from("organizations").update(patch).eq("id", orgId);
-    if (error) return toast.error("Não foi possível guardar.");
+    const { error } = await supabase
+      .from("organizations")
+      .update(patch as never)
+      .eq("id", orgId);
+    if (error) {
+      toast.error("Não foi possível guardar.");
+      return;
+    }
     toast.success("Alterações guardadas.");
     session.reload();
   };

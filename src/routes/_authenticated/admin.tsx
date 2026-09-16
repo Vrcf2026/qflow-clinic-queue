@@ -66,7 +66,10 @@ function SuperAdmin() {
     const { error } = await supabase
       .from("organizations")
       .insert({ name: newOrg.name.trim(), slug });
-    if (error) return toast.error("Não foi possível criar a clínica.");
+    if (error) {
+      toast.error("Não foi possível criar a clínica.");
+      return;
+    }
     setNewOrg({ name: "", slug: "" });
     toast.success("Clínica criada.");
     void load();
