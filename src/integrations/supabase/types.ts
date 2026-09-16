@@ -438,6 +438,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      bootstrap_access: { Args: never; Returns: Json }
       device_context: { Args: { p_token: string }; Returns: Json }
       issue_ticket: {
         Args: {
