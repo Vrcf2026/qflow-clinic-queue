@@ -170,6 +170,7 @@ function Gabinete() {
 
           <div className="rounded-2xl border bg-card p-5">
             <h2 className="text-sm font-semibold text-muted-foreground">Lista de espera</h2>
+            <p className="mt-1 text-xs text-muted-foreground">Regra de chamada: {ruleLabel}</p>
             <ul className="mt-3 divide-y">
               {waiting.length === 0 && (
                 <li className="py-3 text-sm text-muted-foreground">Fila vazia.</li>
