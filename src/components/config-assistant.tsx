@@ -90,7 +90,15 @@ export function ConfigAssistant({
       return;
     }
     setBusy(true);
-    const result = await suggestClinicConfig({ data: { prompt: prompt.trim() } });
+    let result: Awaited<ReturnType<typeof suggestClinicConfig>>;
+    try {
+      result = await suggestClinicConfig({ data: { prompt: prompt.trim() } });
+    } catch (error) {
+      setBusy(false);
+      console.error(error);
+      toast.error("Não foi possível falar com o assistente. Tente novamente.");
+      return;
+    }
     setBusy(false);
     if ("error" in result && result.error) {
       const map: Record<string, string> = {
