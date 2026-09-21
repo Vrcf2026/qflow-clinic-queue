@@ -308,6 +308,20 @@ function Dashboard() {
           </div>
         </TabsContent>
 
+        {/* Assistente de configuração com IA */}
+        <TabsContent value="assistente" className="mt-6">
+          <ConfigAssistant
+            timezone={session.org?.timezone ?? "Europe/Lisbon"}
+            canApply={session.roles.some(
+              (r) => r === "org_admin" || r === "chefe_turno" || r === "super_admin",
+            )}
+            onApplied={() => {
+              session.reload();
+              live.refresh();
+            }}
+          />
+        </TabsContent>
+
         {/* Estatísticas */}
         <TabsContent value="estatisticas" className="mt-6">
           <OrgStats />
