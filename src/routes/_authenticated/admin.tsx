@@ -762,6 +762,17 @@ function SuperAdmin() {
           })}
         </section>
 
+        {/* Auditoria global */}
+        <section className="rounded-2xl border bg-card p-5">
+          <h2 className="text-lg font-semibold">Auditoria (todas as clínicas)</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Rasto completo e inalterável de senhas e alterações de configuração.
+          </p>
+          <div className="mt-4">
+            <AuditLog showOrgColumn />
+          </div>
+        </section>
+
         {/* Todos os dispositivos */}
         <section className="rounded-2xl border bg-card p-5">
           <h2 className="text-lg font-semibold">Dispositivos (todas as clínicas)</h2>
