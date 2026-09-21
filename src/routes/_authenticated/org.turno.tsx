@@ -4,12 +4,23 @@ import { RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
+import { StrategyPicker } from "@/components/strategy-picker";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrgLive, useSession } from "@/hooks/use-qflow";
-import { resetServiceDay } from "@/lib/ticket-actions";
-import { MODULE_LABELS, modules, queueIds, waitingColor, type Modules } from "@/lib/qflow";
+import { resetServiceDay, setPostStrategy, setQueueStrategy } from "@/lib/ticket-actions";
+import {
+  effectiveStrategy,
+  isQueueStrategy,
+  MODULE_LABELS,
+  modules,
+  priorityRatio,
+  QUEUE_STRATEGY_LABELS,
+  queueIds,
+  waitingColor,
+  type Modules,
+} from "@/lib/qflow";
 
 export const Route = createFileRoute("/_authenticated/org/turno")({
   head: () => ({
