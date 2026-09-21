@@ -1,7 +1,8 @@
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
-import type { Ticket } from "@/lib/qflow";
+import type { Json } from "@/integrations/supabase/types";
+import type { PriorityRatio, QueueStrategy, Ticket } from "@/lib/qflow";
 
 /**
  * Every ticket action runs on the server (SECURITY DEFINER functions), so the
