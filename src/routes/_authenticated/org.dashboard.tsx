@@ -13,10 +13,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { createTeamMember } from "@/lib/team.functions";
 import { useOrgLive, useSession } from "@/hooks/use-qflow";
+import { StrategyPicker } from "@/components/strategy-picker";
+import { setPostStrategy, setQueueStrategy } from "@/lib/ticket-actions";
 import {
   MODULE_LABELS,
+  QUEUE_STRATEGY_LABELS,
   ROLE_LABELS,
+  effectiveStrategy,
+  isQueueStrategy,
   modules,
+  priorityRatio,
   queueIds,
   tvConfig,
   waitingColor,
@@ -446,6 +452,30 @@ function Dashboard() {
                         </button>
                       );
                     })}
+                  </div>
+                  <div className="mt-4 border-t pt-3">
+                    <p className="text-xs font-semibold uppercase text-muted-foreground">
+                      Regra de chamada deste {tab === "balcoes" ? "balcão" : "gabinete"}
+                    </p>
+                    <div className="mt-2">
+                      <StrategyPicker
+                        strategy={isQueueStrategy(row.queue_strategy) ? row.queue_strategy : null}
+                        ratio={priorityRatio(row.priority_ratio, orgRule.ratio)}
+                        allowInherit
+                        compact
+                        canEdit
+                        inheritedLabel={QUEUE_STRATEGY_LABELS[orgRule.strategy]}
+                        onSave={async (strategy, ratio) => {
+                          await setPostStrategy(
+                            table,
+                            row.id,
+                            strategy,
+                            strategy === null ? null : ratio,
+                          );
+                          live.refresh();
+                        }}
+                      />
+                    </div>
                   </div>
                 </div>
               ))}
@@ -917,6 +947,22 @@ function Dashboard() {
                 onCheckedChange={(v) => setSettings({ ...settings, en: v })}
               />
             </label>
+          </div>
+          <div className="space-y-2 border-t pt-4">
+            <Label className="text-xs text-muted-foreground">
+              Regra de ordenação da fila (predefinição da clínica)
+            </Label>
+            <StrategyPicker
+              strategy={orgRule.strategy}
+              ratio={orgRule.ratio}
+              canEdit
+              onSave={async (strategy, ratio) => {
+                if (!strategy) return;
+                await setQueueStrategy(strategy, ratio);
+                session.reload();
+                live.refresh();
+              }}
+            />
           </div>
           <div className="grid gap-3 border-t pt-4 sm:grid-cols-3">
             <Field label="Saltar: volta depois de N senhas">
