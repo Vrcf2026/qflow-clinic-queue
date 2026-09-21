@@ -314,6 +314,17 @@ function Turno() {
         </section>
 
         {/* Registo de auditoria do turno */}
+        <section>
+          <ConfigAssistant
+            timezone={session.org?.timezone ?? "Europe/Lisbon"}
+            canApply={canManage}
+            onApplied={() => {
+              session.reload();
+              live.refresh();
+            }}
+          />
+        </section>
+
         <section className="rounded-2xl border bg-card p-5">
           <h2 className="text-lg font-semibold">Registo de auditoria</h2>
           <p className="mt-1 text-sm text-muted-foreground">

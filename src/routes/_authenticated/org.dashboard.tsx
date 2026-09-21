@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { createTeamMember } from "@/lib/team.functions";
 import { useOrgLive, useSession } from "@/hooks/use-qflow";
 import { StrategyPicker } from "@/components/strategy-picker";
+import { ConfigAssistant } from "@/components/config-assistant";
 import { setPostStrategy, setQueueStrategy } from "@/lib/ticket-actions";
 import {
   MODULE_LABELS,
@@ -55,6 +56,7 @@ export const Route = createFileRoute("/_authenticated/org/dashboard")({
 
 const TABS = [
   ["geral", "Visão geral"],
+  ["assistente", "Assistente IA"],
   ["estatisticas", "Estatísticas"],
   ["auditoria", "Auditoria"],
   ["filas", "Filas"],
