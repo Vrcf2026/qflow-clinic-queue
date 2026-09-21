@@ -104,7 +104,10 @@ export async function nextTicketForDesk(
   deskId: string | null,
   cabinetId?: string | null,
 ): Promise<Ticket | null> {
-  const args: { p_desk_id: string | null; p_cabinet_id?: string } = { p_desk_id: deskId };
+  const args = { p_desk_id: deskId as unknown as string } as {
+    p_desk_id: string;
+    p_cabinet_id?: string;
+  };
   if (cabinetId) args.p_cabinet_id = cabinetId;
   const { data } = await supabase.rpc("next_ticket_for_desk", args);
   const result = (data ?? {}) as { ticket?: Ticket | null; error?: string };

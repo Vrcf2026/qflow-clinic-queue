@@ -1020,10 +1020,19 @@ function Dashboard() {
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="flex flex-col gap-1.5">
       <Label className="text-xs text-muted-foreground">{label}</Label>
+      {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
       {children}
     </div>
   );
