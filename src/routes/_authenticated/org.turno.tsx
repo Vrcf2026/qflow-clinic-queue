@@ -46,6 +46,12 @@ function Turno() {
   const live = useOrgLive(session.org?.id, session.dayStart);
   const [busy, setBusy] = useState(false);
   const mods = modules(session.org);
+  /** Só o chefe de turno, a administração da clínica ou o super administrador definem as regras. */
+  const canManage = session.roles.some(
+    (r) => r === "chefe_turno" || r === "org_admin" || r === "super_admin",
+  );
+  const org = effectiveStrategy(session.org);
+  const orgLabel = QUEUE_STRATEGY_LABELS[org.strategy];
 
   const toggleQueue = async (id: string, active: boolean) => {
     await supabase.from("queues").update({ active }).eq("id", id);
@@ -101,6 +107,27 @@ function Turno() {
         </Button>
       }
     >
+      <div className="mb-6 rounded-2xl border bg-card p-5">
+        <h2 className="text-lg font-semibold">Regra de ordenação da fila</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Define como o sistema escolhe a próxima senha em toda a clínica. Cada balcão ou gabinete
+          pode depois ter a sua própria regra.
+        </p>
+        <div className="mt-4">
+          <StrategyPicker
+            strategy={org.strategy}
+            ratio={org.ratio}
+            canEdit={canManage}
+            onSave={async (strategy, ratio) => {
+              if (!strategy) return;
+              await setQueueStrategy(strategy, ratio);
+              session.reload();
+              live.refresh();
+            }}
+          />
+        </div>
+      </div>
+
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="rounded-2xl border bg-card p-5">
           <h2 className="text-lg font-semibold">Filas</h2>
@@ -168,6 +195,30 @@ function Turno() {
                       );
                     })}
                   </div>
+                  <div className="mt-4 border-t pt-3">
+                    <p className="text-xs font-semibold uppercase text-muted-foreground">
+                      Regra deste balcão
+                    </p>
+                    <div className="mt-2">
+                      <StrategyPicker
+                        strategy={isQueueStrategy(d.queue_strategy) ? d.queue_strategy : null}
+                        ratio={priorityRatio(d.priority_ratio, org.ratio)}
+                        allowInherit
+                        compact
+                        canEdit={canManage}
+                        inheritedLabel={orgLabel}
+                        onSave={async (strategy, ratio) => {
+                          await setPostStrategy(
+                            "desks",
+                            d.id,
+                            strategy,
+                            strategy === null ? null : ratio,
+                          );
+                          live.refresh();
+                        }}
+                      />
+                    </div>
+                  </div>
                 </li>
               ))}
             </ul>
@@ -207,6 +258,30 @@ function Turno() {
                           </button>
                         );
                       })}
+                    </div>
+                    <div className="mt-4 border-t pt-3">
+                      <p className="text-xs font-semibold uppercase text-muted-foreground">
+                        Regra deste gabinete
+                      </p>
+                      <div className="mt-2">
+                        <StrategyPicker
+                          strategy={isQueueStrategy(c.queue_strategy) ? c.queue_strategy : null}
+                          ratio={priorityRatio(c.priority_ratio, org.ratio)}
+                          allowInherit
+                          compact
+                          canEdit={canManage}
+                          inheritedLabel={orgLabel}
+                          onSave={async (strategy, ratio) => {
+                            await setPostStrategy(
+                              "cabinets",
+                              c.id,
+                              strategy,
+                              strategy === null ? null : ratio,
+                            );
+                            live.refresh();
+                          }}
+                        />
+                      </div>
                     </div>
                   </li>
                 ))}
