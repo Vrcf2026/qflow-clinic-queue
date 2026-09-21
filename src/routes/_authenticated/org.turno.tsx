@@ -4,6 +4,7 @@ import { RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
+import { AuditLog } from "@/components/audit-log";
 import { StrategyPicker } from "@/components/strategy-picker";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
