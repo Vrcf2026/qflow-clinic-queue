@@ -97,6 +97,10 @@ function Dashboard() {
     name: "",
     type: "quiosque",
   });
+  /** Regra de ordenação predefinida da clínica (herdada por balcões e gabinetes). */
+  const orgRule = effectiveStrategy(session.org);
+
+
 
   const loadTeam = useCallback(async () => {
     if (!orgId) return;
