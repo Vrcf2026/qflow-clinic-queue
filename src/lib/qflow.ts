@@ -145,6 +145,121 @@ export function queueOrder(a: Ticket, b: Ticket): number {
   return new Date(ak).getTime() - new Date(bk).getTime();
 }
 
+/* ---------------- Regra de ordenação da fila ---------------- */
+
+export type QueueStrategy = "chegada" | "prioridade" | "alternado" | "duracao";
+export type PriorityRatio = { priority: number; normal: number };
+
+export const QUEUE_STRATEGIES: QueueStrategy[] = ["chegada", "prioridade", "alternado", "duracao"];
+
+export const QUEUE_STRATEGY_LABELS: Record<QueueStrategy, string> = {
+  chegada: "Ordem de chegada",
+  prioridade: "Prioritários primeiro",
+  alternado: "Alternar prioritários / normais",
+  duracao: "Atendimentos mais rápidos primeiro",
+};
+
+export const QUEUE_STRATEGY_HINTS: Record<QueueStrategy, string> = {
+  chegada: "Primeiro a chegar, primeiro a ser chamado. As senhas prioritárias não passam à frente.",
+  prioridade: "Senhas prioritárias à frente e, depois, a ordem de chegada.",
+  alternado: "Chama N senhas prioritárias por cada M normais, para os normais não ficarem parados.",
+  duracao: "Dá preferência às filas com duração média de atendimento mais curta.",
+};
+
+type StrategyHolder = { queue_strategy?: string | null; priority_ratio?: unknown } | null | undefined;
+
+export function priorityRatio(value: unknown, fallback: PriorityRatio = { priority: 2, normal: 1 }) {
+  const r = (value ?? {}) as Partial<Record<"priority" | "normal", number>>;
+  return {
+    priority: Math.max(1, Number(r.priority ?? fallback.priority) || fallback.priority),
+    normal: Math.max(1, Number(r.normal ?? fallback.normal) || fallback.normal),
+  };
+}
+
+export function isQueueStrategy(value: unknown): value is QueueStrategy {
+  return QUEUE_STRATEGIES.includes(value as QueueStrategy);
+}
+
+/** Rule in force for a post: the desk/cabinet override when set, otherwise the clinic default. */
+export function effectiveStrategy(
+  org?: StrategyHolder,
+  post?: StrategyHolder,
+): { strategy: QueueStrategy; ratio: PriorityRatio; inherited: boolean } {
+  const orgStrategy = isQueueStrategy(org?.queue_strategy) ? org!.queue_strategy : "prioridade";
+  const orgRatio = priorityRatio(org?.priority_ratio);
+  if (post && isQueueStrategy(post.queue_strategy)) {
+    return {
+      strategy: post.queue_strategy,
+      ratio: priorityRatio(post.priority_ratio, orgRatio),
+      inherited: false,
+    };
+  }
+  return { strategy: orgStrategy, ratio: orgRatio, inherited: true };
+}
+
+const sortKey = (t: Ticket) => new Date(t.sort_at ?? t.created_at).getTime();
+
+/**
+ * Orders a waiting list exactly like the server picks the next ticket:
+ * queue preference (or shortest average duration) plus the chosen rule.
+ */
+export function orderWaiting(
+  tickets: Ticket[],
+  options: {
+    strategy: QueueStrategy;
+    ratio: PriorityRatio;
+    queues: Queue[];
+    preference?: string[];
+  },
+): Ticket[] {
+  const { strategy, ratio, queues } = options;
+  const preference = options.preference ?? [];
+  const rank = (queueId: string) => {
+    const i = preference.indexOf(queueId);
+    return i === -1 ? preference.length : i;
+  };
+  const avg = (queueId: string) =>
+    queues.find((q) => q.id === queueId)?.avg_duration_minutes ?? 10;
+
+  const base = [...tickets];
+  if (strategy === "duracao") {
+    return base.sort(
+      (a, b) =>
+        avg(a.queue_id) - avg(b.queue_id) ||
+        (a.priority === b.priority ? 0 : a.priority ? -1 : 1) ||
+        sortKey(a) - sortKey(b),
+    );
+  }
+  if (strategy === "chegada") {
+    return base.sort((a, b) => rank(a.queue_id) - rank(b.queue_id) || sortKey(a) - sortKey(b));
+  }
+  if (strategy === "prioridade") {
+    return base.sort(
+      (a, b) =>
+        rank(a.queue_id) - rank(b.queue_id) ||
+        (a.priority === b.priority ? 0 : a.priority ? -1 : 1) ||
+        sortKey(a) - sortKey(b),
+    );
+  }
+  // alternado: N prioritárias por cada M normais
+  const byQueueThenArrival = (a: Ticket, b: Ticket) =>
+    rank(a.queue_id) - rank(b.queue_id) || sortKey(a) - sortKey(b);
+  const prio = base.filter((t) => t.priority).sort(byQueueThenArrival);
+  const normal = base.filter((t) => !t.priority).sort(byQueueThenArrival);
+  const out: Ticket[] = [];
+  while (prio.length || normal.length) {
+    for (let i = 0; i < ratio.priority; i++) {
+      const t = prio.shift() ?? normal.shift();
+      if (t) out.push(t);
+    }
+    for (let i = 0; i < ratio.normal; i++) {
+      const t = normal.shift() ?? prio.shift();
+      if (t) out.push(t);
+    }
+  }
+  return out;
+}
+
 export const EVENT_LABELS: Record<string, string> = {
   emitida: "Emitida",
   chamada: "Chamada",

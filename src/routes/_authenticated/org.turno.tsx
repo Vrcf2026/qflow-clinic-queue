@@ -4,12 +4,24 @@ import { RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
+import { AuditLog } from "@/components/audit-log";
+import { StrategyPicker } from "@/components/strategy-picker";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrgLive, useSession } from "@/hooks/use-qflow";
-import { resetServiceDay } from "@/lib/ticket-actions";
-import { MODULE_LABELS, modules, queueIds, waitingColor, type Modules } from "@/lib/qflow";
+import { resetServiceDay, setPostStrategy, setQueueStrategy } from "@/lib/ticket-actions";
+import {
+  effectiveStrategy,
+  isQueueStrategy,
+  MODULE_LABELS,
+  modules,
+  priorityRatio,
+  QUEUE_STRATEGY_LABELS,
+  queueIds,
+  waitingColor,
+  type Modules,
+} from "@/lib/qflow";
 
 export const Route = createFileRoute("/_authenticated/org/turno")({
   head: () => ({
@@ -35,6 +47,12 @@ function Turno() {
   const live = useOrgLive(session.org?.id, session.dayStart);
   const [busy, setBusy] = useState(false);
   const mods = modules(session.org);
+  /** Só o chefe de turno, a administração da clínica ou o super administrador definem as regras. */
+  const canManage = session.roles.some(
+    (r) => r === "chefe_turno" || r === "org_admin" || r === "super_admin",
+  );
+  const org = effectiveStrategy(session.org);
+  const orgLabel = QUEUE_STRATEGY_LABELS[org.strategy];
 
   const toggleQueue = async (id: string, active: boolean) => {
     await supabase.from("queues").update({ active }).eq("id", id);
@@ -90,6 +108,27 @@ function Turno() {
         </Button>
       }
     >
+      <div className="mb-6 rounded-2xl border bg-card p-5">
+        <h2 className="text-lg font-semibold">Regra de ordenação da fila</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Define como o sistema escolhe a próxima senha em toda a clínica. Cada balcão ou gabinete
+          pode depois ter a sua própria regra.
+        </p>
+        <div className="mt-4">
+          <StrategyPicker
+            strategy={org.strategy}
+            ratio={org.ratio}
+            canEdit={canManage}
+            onSave={async (strategy, ratio) => {
+              if (!strategy) return;
+              await setQueueStrategy(strategy, ratio);
+              session.reload();
+              live.refresh();
+            }}
+          />
+        </div>
+      </div>
+
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="rounded-2xl border bg-card p-5">
           <h2 className="text-lg font-semibold">Filas</h2>
@@ -157,6 +196,30 @@ function Turno() {
                       );
                     })}
                   </div>
+                  <div className="mt-4 border-t pt-3">
+                    <p className="text-xs font-semibold uppercase text-muted-foreground">
+                      Regra deste balcão
+                    </p>
+                    <div className="mt-2">
+                      <StrategyPicker
+                        strategy={isQueueStrategy(d.queue_strategy) ? d.queue_strategy : null}
+                        ratio={priorityRatio(d.priority_ratio, org.ratio)}
+                        allowInherit
+                        compact
+                        canEdit={canManage}
+                        inheritedLabel={orgLabel}
+                        onSave={async (strategy, ratio) => {
+                          await setPostStrategy(
+                            "desks",
+                            d.id,
+                            strategy,
+                            strategy === null ? null : ratio,
+                          );
+                          live.refresh();
+                        }}
+                      />
+                    </div>
+                  </div>
                 </li>
               ))}
             </ul>
@@ -197,6 +260,30 @@ function Turno() {
                         );
                       })}
                     </div>
+                    <div className="mt-4 border-t pt-3">
+                      <p className="text-xs font-semibold uppercase text-muted-foreground">
+                        Regra deste gabinete
+                      </p>
+                      <div className="mt-2">
+                        <StrategyPicker
+                          strategy={isQueueStrategy(c.queue_strategy) ? c.queue_strategy : null}
+                          ratio={priorityRatio(c.priority_ratio, org.ratio)}
+                          allowInherit
+                          compact
+                          canEdit={canManage}
+                          inheritedLabel={orgLabel}
+                          onSave={async (strategy, ratio) => {
+                            await setPostStrategy(
+                              "cabinets",
+                              c.id,
+                              strategy,
+                              strategy === null ? null : ratio,
+                            );
+                            live.refresh();
+                          }}
+                        />
+                      </div>
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -222,6 +309,21 @@ function Turno() {
                 </span>
               ))}
             </div>
+          </div>
+        </section>
+
+        {/* Registo de auditoria do turno */}
+        <section className="rounded-2xl border bg-card p-5">
+          <h2 className="text-lg font-semibold">Registo de auditoria</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Rasto completo e inalterável: quem chamou, re-chamou, concluiu ou cancelou cada senha e
+            quem alterou filas, balcões e gabinetes.
+          </p>
+          <div className="mt-4">
+            <AuditLog
+              orgId={session.org?.id ?? null}
+              timezone={session.org?.timezone ?? "Europe/Lisbon"}
+            />
           </div>
         </section>
       </div>

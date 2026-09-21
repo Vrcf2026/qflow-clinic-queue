@@ -4,6 +4,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
+import { AuditLog } from "@/components/audit-log";
 import { OrgStats } from "@/components/org-stats";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,10 +14,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { createTeamMember } from "@/lib/team.functions";
 import { useOrgLive, useSession } from "@/hooks/use-qflow";
+import { StrategyPicker } from "@/components/strategy-picker";
+import { setPostStrategy, setQueueStrategy } from "@/lib/ticket-actions";
 import {
   MODULE_LABELS,
+  QUEUE_STRATEGY_LABELS,
   ROLE_LABELS,
+  effectiveStrategy,
+  isQueueStrategy,
   modules,
+  priorityRatio,
   queueIds,
   tvConfig,
   waitingColor,
@@ -49,6 +56,7 @@ export const Route = createFileRoute("/_authenticated/org/dashboard")({
 const TABS = [
   ["geral", "Visão geral"],
   ["estatisticas", "Estatísticas"],
+  ["auditoria", "Auditoria"],
   ["filas", "Filas"],
   ["balcoes", "Balcões"],
   ["gabinetes", "Gabinetes"],
@@ -91,6 +99,10 @@ function Dashboard() {
     name: "",
     type: "quiosque",
   });
+  /** Regra de ordenação predefinida da clínica (herdada por balcões e gabinetes). */
+  const orgRule = effectiveStrategy(session.org);
+
+
 
   const loadTeam = useCallback(async () => {
     if (!orgId) return;
@@ -299,6 +311,11 @@ function Dashboard() {
           <OrgStats />
         </TabsContent>
 
+        {/* Auditoria */}
+        <TabsContent value="auditoria" className="mt-6">
+          <AuditLog orgId={orgId} timezone={session.org?.timezone ?? "Europe/Lisbon"} />
+        </TabsContent>
+
         {/* Filas */}
         <TabsContent value="filas" className="mt-6 space-y-4">
           <Button onClick={addQueue}>
@@ -446,6 +463,30 @@ function Dashboard() {
                         </button>
                       );
                     })}
+                  </div>
+                  <div className="mt-4 border-t pt-3">
+                    <p className="text-xs font-semibold uppercase text-muted-foreground">
+                      Regra de chamada deste {tab === "balcoes" ? "balcão" : "gabinete"}
+                    </p>
+                    <div className="mt-2">
+                      <StrategyPicker
+                        strategy={isQueueStrategy(row.queue_strategy) ? row.queue_strategy : null}
+                        ratio={priorityRatio(row.priority_ratio, orgRule.ratio)}
+                        allowInherit
+                        compact
+                        canEdit
+                        inheritedLabel={QUEUE_STRATEGY_LABELS[orgRule.strategy]}
+                        onSave={async (strategy, ratio) => {
+                          await setPostStrategy(
+                            table,
+                            row.id,
+                            strategy,
+                            strategy === null ? null : ratio,
+                          );
+                          live.refresh();
+                        }}
+                      />
+                    </div>
                   </div>
                 </div>
               ))}
@@ -918,6 +959,22 @@ function Dashboard() {
               />
             </label>
           </div>
+          <div className="space-y-2 border-t pt-4">
+            <Label className="text-xs text-muted-foreground">
+              Regra de ordenação da fila (predefinição da clínica)
+            </Label>
+            <StrategyPicker
+              strategy={orgRule.strategy}
+              ratio={orgRule.ratio}
+              canEdit
+              onSave={async (strategy, ratio) => {
+                if (!strategy) return;
+                await setQueueStrategy(strategy, ratio);
+                session.reload();
+                live.refresh();
+              }}
+            />
+          </div>
           <div className="grid gap-3 border-t pt-4 sm:grid-cols-3">
             <Field label="Saltar: volta depois de N senhas">
               <Input
@@ -970,10 +1027,19 @@ function Dashboard() {
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="flex flex-col gap-1.5">
       <Label className="text-xs text-muted-foreground">{label}</Label>
+      {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
       {children}
     </div>
   );

@@ -4,6 +4,7 @@ import { ChevronDown, ChevronUp, Plus, Upload } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
+import { AuditLog } from "@/components/audit-log";
 import { ChartCard, OrgStats as OrgStatsPanel } from "@/components/org-stats";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -744,15 +745,32 @@ function SuperAdmin() {
                   </div>
                 )}
 
-                {/* Estatísticas */}
+                {/* Estatísticas e auditoria */}
                 {detailOrg === org.id && (
-                  <div className="mt-5 border-t pt-5">
+                  <div className="mt-5 space-y-6 border-t pt-5">
                     <OrgStatsPanel orgId={org.id} />
+                    <div>
+                      <h3 className="mb-3 text-sm font-semibold uppercase text-muted-foreground">
+                        Registo de auditoria
+                      </h3>
+                      <AuditLog orgId={org.id} timezone={org.timezone ?? "Europe/Lisbon"} />
+                    </div>
                   </div>
                 )}
               </article>
             );
           })}
+        </section>
+
+        {/* Auditoria global */}
+        <section className="rounded-2xl border bg-card p-5">
+          <h2 className="text-lg font-semibold">Auditoria (todas as clínicas)</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Rasto completo e inalterável de senhas e alterações de configuração.
+          </p>
+          <div className="mt-4">
+            <AuditLog showOrgColumn />
+          </div>
         </section>
 
         {/* Todos os dispositivos */}

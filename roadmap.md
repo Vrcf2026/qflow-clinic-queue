@@ -15,8 +15,10 @@
 - Página /setup para a primeira conta de administração
 
 ## Por fazer
-- Regra de ordenação da fila configurável: por clínica (predefinição) e por balcão/gabinete, incluindo rácio prioritários:normais (ex. 2:1), gerida só pelo chefe de turno ou superior
 - Nota de turno do gabinete ainda não fica guardada
 - Google: falta a configuração do lado da Google para o botão "Entrar com Google"
 - Canal de vídeo da TV (endereço do stream/M3U) por preencher
 - SMS (depois)
+
+## Concluído (recente)
+- Registo de auditoria imutável com filtros por clínica, dia de serviço e tipo (senhas + alterações de filas/balcões/gabinetes/clínica)

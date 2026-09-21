@@ -49,9 +49,29 @@ Cada ação é uma função no servidor que valida permissão e grava histórico
 
 ## Ordem de chamada
 
-1. Senhas prioritárias primeiro.
-2. Depois a ordem de chegada, usando `sort_at` (senhas saltadas reentram mais atrás).
-3. Nos balcões, `desks.queue_ids` é uma lista **ordenada**: a primeira fila da lista é servida antes das seguintes. Configurável na administração e pelo chefe de turno.
+A regra de ordenação é configurável por clínica e, se necessário, por posto.
+
+| Regra (`queue_strategy`) | Como escolhe a próxima senha |
+| --- | --- |
+| `chegada` | Só ordem de chegada (`sort_at`); prioritários não passam à frente |
+| `prioridade` | Prioritários primeiro, depois ordem de chegada (predefinição) |
+| `alternado` | N prioritários por cada M normais (`organizations.priority_ratio`, ex. `{"priority":2,"normal":1}`); se um lado estiver vazio usa o outro |
+| `duracao` | Entre as filas do posto, serve primeiro a de menor `queues.avg_duration_minutes`, depois prioridade e chegada |
+
+- `organizations.queue_strategy` / `priority_ratio` são a predefinição da clínica.
+- `desks.queue_strategy` / `cabinets.queue_strategy` (e os respetivos `priority_ratio`) substituem essa
+  predefinição nesse posto; `NULL` herda a clínica.
+- `private.effective_strategy(org, desk, cabinet)` devolve a regra em vigor e
+  `private.pick_next(org, queue_ids, desk, cabinet)` devolve a próxima senha já segundo essa regra.
+  `next_ticket_for_desk(desk, cabinet)` usa ambas; `issue_ticket`, `ticket_status` e `tv_state`
+  calculam posição e próximas senhas com a mesma regra.
+- Em `chegada`, `prioridade` e `alternado` a lista ordenada `desks.queue_ids` continua a ser a ordem de
+  preferência de filas (a primeira é servida antes das seguintes).
+- Alterar a regra da clínica só é possível através de `public.set_queue_strategy(strategy, ratio)`, que
+  valida `private.can_manage_org_config()` (chefe de turno, administrador da clínica, super
+  administrador). A regra de cada posto é escrita nas tabelas `desks`/`cabinets`, cujas políticas exigem
+  a mesma permissão.
+
 
 ## Estatísticas
 
@@ -78,3 +98,22 @@ de preferência de chamada.
 super administrador e deixa de funcionar assim que existir qualquer papel atribuído.
 Depois disso, as contas são criadas por `createTeamMember` (super_admin para
 qualquer clínica; org_admin apenas na sua).
+
+## Registo de auditoria (`audit_log`)
+
+Rasto completo e **inalterável**: quem, quando, em que clínica e em que dia de serviço (turno).
+
+- A tabela `public.audit_log` só tem política de leitura. Não existem políticas de inserção,
+  alteração ou remoção, por isso nenhuma conta da aplicação pode escrever nem apagar registos;
+  as linhas são criadas por gatilhos `SECURITY DEFINER` (`private.audit_write`).
+- **Senhas**: o gatilho `audit_ticket_events` espelha cada `ticket_events` — emitida, chamada,
+  rechamada, em atendimento, concluída, faltou, saltada, recuperada e admitida — guardando fila,
+  posto, se era prioritária e o motivo.
+- **Configuração**: os gatilhos em `queues`, `desks` e `cabinets` registam criações, remoções e
+  alterações (nome, ativo, filas atribuídas, regra de ordenação, rácio, ordem, duração média) com os
+  valores antes/depois; o gatilho em `organizations` regista alterações à configuração da clínica.
+- **Leitura**: `public.audit_trail(p_from, p_to, p_org, p_entity, p_action, p_limit)` — chefe de turno
+  e administrador da clínica vêem só a própria clínica; o super administrador vê todas e pode filtrar
+  por clínica. Os filtros de data usam o fuso da clínica.
+- **Onde aparece**: separador "Auditoria" na administração da clínica, secção "Registo de auditoria"
+  no ecrã de Turno e secção global em "Plataforma" (com coluna de clínica).

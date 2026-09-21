@@ -1,7 +1,8 @@
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
-import type { Ticket } from "@/lib/qflow";
+import type { Json } from "@/integrations/supabase/types";
+import type { PriorityRatio, QueueStrategy, Ticket } from "@/lib/qflow";
 
 /**
  * Every ticket action runs on the server (SECURITY DEFINER functions), so the
@@ -98,9 +99,50 @@ export async function resetServiceDay() {
   return handle(data);
 }
 
-/** Next ticket a desk should call, honouring the desk queue preference order. */
-export async function nextTicketForDesk(deskId: string): Promise<Ticket | null> {
-  const { data } = await supabase.rpc("next_ticket_for_desk", { p_desk_id: deskId });
+/** Next ticket a post should call, honouring its queue preference and calling rule. */
+export async function nextTicketForDesk(
+  deskId: string | null,
+  cabinetId?: string | null,
+): Promise<Ticket | null> {
+  const args = { p_desk_id: deskId as unknown as string } as {
+    p_desk_id: string;
+    p_cabinet_id?: string;
+  };
+  if (cabinetId) args.p_cabinet_id = cabinetId;
+  const { data } = await supabase.rpc("next_ticket_for_desk", args);
   const result = (data ?? {}) as { ticket?: Ticket | null; error?: string };
   return result.ticket ?? null;
+}
+
+/** Clinic-wide calling rule. Server-side check: shift lead, org admin or super admin. */
+export async function setQueueStrategy(strategy: string, ratio: PriorityRatio) {
+  const { data } = await supabase.rpc("set_queue_strategy", {
+    p_strategy: strategy,
+    p_ratio: ratio as unknown as Json,
+  });
+  const result = handle(data);
+  if (!result.error) toast.success("Regra de ordenação da clínica atualizada.");
+  return result;
+}
+
+/** Per-post rule (null strategy = follow the clinic). RLS allows managers only. */
+export async function setPostStrategy(
+  table: "desks" | "cabinets",
+  id: string,
+  strategy: QueueStrategy | null,
+  ratio: PriorityRatio | null,
+) {
+  const { error } = await supabase
+    .from(table)
+    .update({
+      queue_strategy: strategy,
+      priority_ratio: (ratio as unknown as Json) ?? null,
+    })
+    .eq("id", id);
+  if (error) {
+    toast.error("Não tem permissão para alterar a regra deste posto.");
+    return { error: "forbidden" } as Result;
+  }
+  toast.success("Regra do posto atualizada.");
+  return {} as Result;
 }
