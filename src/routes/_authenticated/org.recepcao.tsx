@@ -8,6 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useOrgLive, useSession } from "@/hooks/use-qflow";
 import {
+  effectiveStrategy,
+  orderWaiting,
+  QUEUE_STRATEGY_LABELS,
   queueIds,
   queueOrder,
   STATUS_LABELS,
@@ -73,23 +76,31 @@ function Recepcao() {
   }, [desk, live.queues]);
 
   /**
-   * A ordem de chamada segue a preferência de filas configurada para o balcão:
-   * a primeira fila da lista é servida antes das seguintes. Dentro de cada fila,
-   * senhas prioritárias primeiro e depois a ordem de chegada (com senhas
-   * saltadas a reentrar mais atrás).
+   * A ordem de chamada segue a preferência de filas do balcão e a regra de
+   * ordenação em vigor (do próprio balcão ou, na falta dela, da clínica).
+   * Ambas são definidas pelo chefe de turno ou pela administração.
    */
   const deskPreference = useMemo(() => queueIds(desk), [desk]);
   const rank = (queueId: string) => {
     const i = deskPreference.indexOf(queueId);
     return i === -1 ? deskPreference.length : i;
   };
+  const rule = useMemo(() => effectiveStrategy(session.org, desk), [session.org, desk]);
 
   const waiting = useMemo(
     () =>
-      live.tickets
-        .filter((t) => t.status === "em_espera" && deskQueues.some((q) => q.id === t.queue_id))
-        .sort((a, b) => rank(a.queue_id) - rank(b.queue_id) || queueOrder(a, b)),
-    [live.tickets, deskQueues, deskPreference],
+      orderWaiting(
+        live.tickets.filter(
+          (t) => t.status === "em_espera" && deskQueues.some((q) => q.id === t.queue_id),
+        ),
+        {
+          strategy: rule.strategy,
+          ratio: rule.ratio,
+          queues: live.queues,
+          preference: deskPreference,
+        },
+      ),
+    [live.tickets, live.queues, deskQueues, deskPreference, rule.strategy, rule.ratio],
   );
 
   const next = waiting[0] ?? null;
