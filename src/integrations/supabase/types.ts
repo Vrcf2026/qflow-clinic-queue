@@ -14,6 +14,62 @@ export type Database = {
   }
   public: {
     Tables: {
+      audit_log: {
+        Row: {
+          action: string
+          actor_email: string | null
+          actor_name: string | null
+          actor_user_id: string | null
+          created_at: string
+          day_start: string | null
+          detail: Json
+          device_id: string | null
+          entity: string
+          entity_id: string | null
+          entity_label: string | null
+          id: string
+          org_id: string | null
+        }
+        Insert: {
+          action: string
+          actor_email?: string | null
+          actor_name?: string | null
+          actor_user_id?: string | null
+          created_at?: string
+          day_start?: string | null
+          detail?: Json
+          device_id?: string | null
+          entity: string
+          entity_id?: string | null
+          entity_label?: string | null
+          id?: string
+          org_id?: string | null
+        }
+        Update: {
+          action?: string
+          actor_email?: string | null
+          actor_name?: string | null
+          actor_user_id?: string | null
+          created_at?: string
+          day_start?: string | null
+          detail?: Json
+          device_id?: string | null
+          entity?: string
+          entity_id?: string | null
+          entity_label?: string | null
+          id?: string
+          org_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_log_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cabinets: {
         Row: {
           active: boolean
@@ -530,6 +586,17 @@ export type Database = {
     Functions: {
       admit_ticket: {
         Args: { p_name: string; p_ticket_id: string; p_utente?: string }
+        Returns: Json
+      }
+      audit_trail: {
+        Args: {
+          p_action?: string
+          p_entity?: string
+          p_from?: string
+          p_limit?: number
+          p_org?: string
+          p_to?: string
+        }
         Returns: Json
       }
       call_ticket: {
