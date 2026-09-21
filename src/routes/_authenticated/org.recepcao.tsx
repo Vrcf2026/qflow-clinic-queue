@@ -235,6 +235,13 @@ function Recepcao() {
             <h2 className="text-sm font-semibold text-muted-foreground">
               Filas deste balcão · definidas pelo chefe de turno
             </h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Regra de chamada: {QUEUE_STRATEGY_LABELS[rule.strategy]}
+              {rule.strategy === "alternado"
+                ? ` (${rule.ratio.priority} prioritária(s) por ${rule.ratio.normal} normal(is))`
+                : ""}
+              {rule.inherited ? " · herdada da clínica" : " · própria deste balcão"}
+            </p>
             <ul className="mt-3 space-y-2">
               {[...deskQueues]
                 .sort((a, b) => rank(a.id) - rank(b.id))
