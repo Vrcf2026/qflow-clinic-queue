@@ -681,6 +681,7 @@ export type Database = {
         Returns: Json
       }
       platform_stats: { Args: { p_from: string; p_to: string }; Returns: Json }
+      preview_config_suggestion: { Args: { p_id: string }; Returns: Json }
       recover_ticket: { Args: { p_ticket_id: string }; Returns: Json }
       reset_service_day: { Args: never; Returns: Json }
       set_queue_strategy: {
