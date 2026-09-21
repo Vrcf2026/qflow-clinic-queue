@@ -7,7 +7,14 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useOrgLive, useSession } from "@/hooks/use-qflow";
-import { minutesSince, queueIds, queueOrder, timeLisbon } from "@/lib/qflow";
+import {
+  effectiveStrategy,
+  minutesSince,
+  orderWaiting,
+  QUEUE_STRATEGY_LABELS,
+  queueIds,
+  timeLisbon,
+} from "@/lib/qflow";
 import { callTicket, finishTicket, missTicket, startService } from "@/lib/ticket-actions";
 
 export const Route = createFileRoute("/_authenticated/org/gabinete")({
@@ -55,8 +62,27 @@ function Gabinete() {
   const current =
     mine.find((t) => t.cabinet_id === cabinetId && (t.status === "em_atendimento" || t.status === "chamado")) ??
     null;
-  const waiting = useMemo(() => mine.filter((t) => t.status === "em_espera").sort(queueOrder), [mine]);
+  /** Regra de chamada do gabinete (ou da clínica, quando o gabinete a herda). */
+  const rule = useMemo(() => effectiveStrategy(session.org, cabinet), [session.org, cabinet]);
+  const waiting = useMemo(
+    () =>
+      orderWaiting(
+        mine.filter((t) => t.status === "em_espera"),
+        {
+          strategy: rule.strategy,
+          ratio: rule.ratio,
+          queues: live.queues,
+          preference: queueIds(cabinet),
+        },
+      ),
+    [mine, live.queues, cabinet, rule.strategy, rule.ratio],
+  );
   const next = waiting[0] ?? null;
+  const ruleLabel = `${QUEUE_STRATEGY_LABELS[rule.strategy]}${
+    rule.strategy === "alternado"
+      ? ` (${rule.ratio.priority}:${rule.ratio.normal} prioritárias/normais)`
+      : ""
+  }${rule.inherited ? " · herdada da clínica" : " · própria deste gabinete"}`;
 
   const stats = {
     done: mine.filter((t) => t.status === "concluido").length,
