@@ -49,9 +49,29 @@ Cada ação é uma função no servidor que valida permissão e grava histórico
 
 ## Ordem de chamada
 
-1. Senhas prioritárias primeiro.
-2. Depois a ordem de chegada, usando `sort_at` (senhas saltadas reentram mais atrás).
-3. Nos balcões, `desks.queue_ids` é uma lista **ordenada**: a primeira fila da lista é servida antes das seguintes. Configurável na administração e pelo chefe de turno.
+A regra de ordenação é configurável por clínica e, se necessário, por posto.
+
+| Regra (`queue_strategy`) | Como escolhe a próxima senha |
+| --- | --- |
+| `chegada` | Só ordem de chegada (`sort_at`); prioritários não passam à frente |
+| `prioridade` | Prioritários primeiro, depois ordem de chegada (predefinição) |
+| `alternado` | N prioritários por cada M normais (`organizations.priority_ratio`, ex. `{"priority":2,"normal":1}`); se um lado estiver vazio usa o outro |
+| `duracao` | Entre as filas do posto, serve primeiro a de menor `queues.avg_duration_minutes`, depois prioridade e chegada |
+
+- `organizations.queue_strategy` / `priority_ratio` são a predefinição da clínica.
+- `desks.queue_strategy` / `cabinets.queue_strategy` (e os respetivos `priority_ratio`) substituem essa
+  predefinição nesse posto; `NULL` herda a clínica.
+- `private.effective_strategy(org, desk, cabinet)` devolve a regra em vigor e
+  `private.pick_next(org, queue_ids, desk, cabinet)` devolve a próxima senha já segundo essa regra.
+  `next_ticket_for_desk(desk, cabinet)` usa ambas; `issue_ticket`, `ticket_status` e `tv_state`
+  calculam posição e próximas senhas com a mesma regra.
+- Em `chegada`, `prioridade` e `alternado` a lista ordenada `desks.queue_ids` continua a ser a ordem de
+  preferência de filas (a primeira é servida antes das seguintes).
+- Alterar a regra da clínica só é possível através de `public.set_queue_strategy(strategy, ratio)`, que
+  valida `private.can_manage_org_config()` (chefe de turno, administrador da clínica, super
+  administrador). A regra de cada posto é escrita nas tabelas `desks`/`cabinets`, cujas políticas exigem
+  a mesma permissão.
+
 
 ## Estatísticas
 
