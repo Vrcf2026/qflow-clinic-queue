@@ -21,7 +21,9 @@ export type Database = {
           id: string
           name: string
           org_id: string
+          priority_ratio: Json | null
           queue_ids: Json
+          queue_strategy: string | null
         }
         Insert: {
           active?: boolean
@@ -29,7 +31,9 @@ export type Database = {
           id?: string
           name: string
           org_id: string
+          priority_ratio?: Json | null
           queue_ids?: Json
+          queue_strategy?: string | null
         }
         Update: {
           active?: boolean
@@ -37,7 +41,9 @@ export type Database = {
           id?: string
           name?: string
           org_id?: string
+          priority_ratio?: Json | null
           queue_ids?: Json
+          queue_strategy?: string | null
         }
         Relationships: [
           {
@@ -107,7 +113,9 @@ export type Database = {
           id: string
           name: string
           org_id: string
+          priority_ratio: Json | null
           queue_ids: Json
+          queue_strategy: string | null
         }
         Insert: {
           active?: boolean
@@ -115,7 +123,9 @@ export type Database = {
           id?: string
           name: string
           org_id: string
+          priority_ratio?: Json | null
           queue_ids?: Json
+          queue_strategy?: string | null
         }
         Update: {
           active?: boolean
@@ -123,7 +133,9 @@ export type Database = {
           id?: string
           name?: string
           org_id?: string
+          priority_ratio?: Json | null
           queue_ids?: Json
+          queue_strategy?: string | null
         }
         Relationships: [
           {
@@ -185,6 +197,8 @@ export type Database = {
           name: string
           plan: Database["public"]["Enums"]["org_plan"]
           primary_color: string
+          priority_ratio: Json
+          queue_strategy: string
           reset_time: string
           secondary_color: string
           skip_reinsert_after: number
@@ -204,6 +218,8 @@ export type Database = {
           name: string
           plan?: Database["public"]["Enums"]["org_plan"]
           primary_color?: string
+          priority_ratio?: Json
+          queue_strategy?: string
           reset_time?: string
           secondary_color?: string
           skip_reinsert_after?: number
@@ -223,6 +239,8 @@ export type Database = {
           name?: string
           plan?: Database["public"]["Enums"]["org_plan"]
           primary_color?: string
+          priority_ratio?: Json
+          queue_strategy?: string
           reset_time?: string
           secondary_color?: string
           skip_reinsert_after?: number
@@ -536,7 +554,9 @@ export type Database = {
       }
       miss_ticket: { Args: { p_ticket_id: string }; Returns: Json }
       my_access: { Args: never; Returns: Json }
-      next_ticket_for_desk: { Args: { p_desk_id: string }; Returns: Json }
+      next_ticket_for_desk:
+        | { Args: { p_desk_id: string }; Returns: Json }
+        | { Args: { p_cabinet_id?: string; p_desk_id: string }; Returns: Json }
       org_clock: { Args: never; Returns: Json }
       org_stats: {
         Args: { p_from: string; p_org?: string; p_to: string }
@@ -545,6 +565,10 @@ export type Database = {
       platform_stats: { Args: { p_from: string; p_to: string }; Returns: Json }
       recover_ticket: { Args: { p_ticket_id: string }; Returns: Json }
       reset_service_day: { Args: never; Returns: Json }
+      set_queue_strategy: {
+        Args: { p_ratio?: Json; p_strategy: string }
+        Returns: Json
+      }
       skip_ticket: { Args: { p_ticket_id: string }; Returns: Json }
       start_service: { Args: { p_ticket_id: string }; Returns: Json }
       ticket_status: { Args: { p_ticket_id: string }; Returns: Json }
