@@ -162,6 +162,56 @@ export type Database = {
           },
         ]
       }
+      config_suggestions: {
+        Row: {
+          applied_at: string | null
+          applied_by: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          model: string | null
+          org_id: string
+          prompt: string
+          status: string
+          suggestion: Json
+          updated_at: string
+        }
+        Insert: {
+          applied_at?: string | null
+          applied_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          model?: string | null
+          org_id: string
+          prompt: string
+          status?: string
+          suggestion: Json
+          updated_at?: string
+        }
+        Update: {
+          applied_at?: string | null
+          applied_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          model?: string | null
+          org_id?: string
+          prompt?: string
+          status?: string
+          suggestion?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "config_suggestions_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       desks: {
         Row: {
           active: boolean
@@ -588,6 +638,7 @@ export type Database = {
         Args: { p_name: string; p_ticket_id: string; p_utente?: string }
         Returns: Json
       }
+      apply_config_suggestion: { Args: { p_id: string }; Returns: Json }
       audit_trail: {
         Args: {
           p_action?: string
