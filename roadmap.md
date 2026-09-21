@@ -29,3 +29,4 @@
 - [x] Histórico das sugestões em config_suggestions, com estado e quem aplicou
 - [x] Botão "Aplicar" no servidor (apply_config_suggestion), só chefe de turno ou superior
 - [x] Disponível no ecrã Turno e no separador "Assistente IA" da administração
+- [x] Auditoria das sugestões IA: pedido, autor, data, partes aceites e rejeitadas

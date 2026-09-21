@@ -27,6 +27,7 @@ const ENTITY_LABELS: Record<string, string> = {
   balcao: "Balcão",
   gabinete: "Gabinete",
   clinica: "Clínica",
+  sugestao_ia: "Sugestão IA",
 };
 
 const ACTION_LABELS: Record<string, string> = {
@@ -35,17 +36,71 @@ const ACTION_LABELS: Record<string, string> = {
   alterado: "Alterado",
   removido: "Removido",
   configuracao_alterada: "Configuração alterada",
+  sugestao_gerada: "Sugestão gerada",
+  sugestao_aplicada: "Sugestão aplicada",
+  sugestao_descartada: "Sugestão rejeitada",
 };
 
-const ENTITY_FILTERS = ["", "senha", "fila", "balcao", "gabinete", "clinica"] as const;
+const ENTITY_FILTERS = [
+  "",
+  "senha",
+  "fila",
+  "balcao",
+  "gabinete",
+  "clinica",
+  "sugestao_ia",
+] as const;
+
+const REJECT_REASONS: Record<string, string> = {
+  sem_prefixo: "sem prefixo de senha",
+  sem_nome: "sem nome",
+  fila_inexistente: "fila indicada não existe",
+  estrategia_invalida: "regra de prioridade inválida",
+  sugestao_completa: "sugestão inteira rejeitada",
+};
 
 function today(offsetDays = 0): string {
   const d = new Date(Date.now() + offsetDays * 86400000);
   return d.toISOString().slice(0, 10);
 }
 
+/** Resumo legível das partes aceites e rejeitadas de uma sugestão da IA. */
+function describeSuggestion(entry: AuditEntry): string {
+  const d = entry.detail ?? {};
+  if (entry.action === "sugestao_gerada") {
+    const p = (d["propostas"] ?? {}) as Record<string, unknown>;
+    const parts = [
+      `${Number(p["filas"] ?? 0)} fila(s)`,
+      `${Number(p["balcoes"] ?? 0)} balcão(ões)`,
+      `${Number(p["gabinetes"] ?? 0)} gabinete(s)`,
+    ];
+    return `Proposta: ${parts.join(", ")} · "${String(d["prompt"] ?? "").slice(0, 90)}"`;
+  }
+  if (entry.action === "sugestao_descartada") {
+    return "Rejeitada na totalidade — nada foi alterado";
+  }
+  const acc = (d["aceites"] ?? {}) as Record<string, unknown>;
+  const list = (v: unknown) => (Array.isArray(v) ? (v as Record<string, unknown>[]) : []);
+  const accepted = [
+    ...list(acc["filas"]).map((q) => `fila ${String(q["prefix"])} ${String(q["acao"])}`),
+    ...list(acc["balcoes"]).map((x) => `balcão ${String(x["name"])} ${String(x["acao"])}`),
+    ...list(acc["gabinetes"]).map((x) => `gabinete ${String(x["name"])} ${String(x["acao"])}`),
+  ];
+  const clinic = acc["regra_clinica"] as Record<string, unknown> | null | undefined;
+  if (clinic && clinic["strategy"]) accepted.push(`regra da clínica: ${String(clinic["strategy"])}`);
+  const rejected = list(d["rejeitados"]).map((r) => {
+    const motive = REJECT_REASONS[String(r["motivo"])] ?? String(r["motivo"]);
+    return `${String(r["tipo"]).replace(/_/g, " ")} (${motive})`;
+  });
+  const out: string[] = [];
+  if (accepted.length) out.push(`Aceite: ${accepted.join("; ")}`);
+  if (rejected.length) out.push(`Rejeitado: ${rejected.join("; ")}`);
+  return out.join(" — ") || "Sem alterações";
+}
+
 function describe(entry: AuditEntry): string {
   const d = entry.detail ?? {};
+  if (entry.entity === "sugestao_ia") return describeSuggestion(entry);
   if (entry.entity === "senha") {
     const parts = [d["fila"], d["posto"]].filter(Boolean).map(String);
     if (d["prioritaria"] === true) parts.push("prioritária");
