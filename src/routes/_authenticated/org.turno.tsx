@@ -310,6 +310,21 @@ function Turno() {
             </div>
           </div>
         </section>
+
+        {/* Registo de auditoria do turno */}
+        <section className="rounded-2xl border bg-card p-5">
+          <h2 className="text-lg font-semibold">Registo de auditoria</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Rasto completo e inalterável: quem chamou, re-chamou, concluiu ou cancelou cada senha e
+            quem alterou filas, balcões e gabinetes.
+          </p>
+          <div className="mt-4">
+            <AuditLog
+              orgId={session.org?.id ?? null}
+              timezone={session.org?.timezone ?? "Europe/Lisbon"}
+            />
+          </div>
+        </section>
       </div>
     </AppShell>
   );

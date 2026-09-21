@@ -66,9 +66,9 @@ export function AuditLog({
   showOrgColumn = false,
   timezone = "Europe/Lisbon",
 }: {
-  orgId?: string | null;
-  showOrgColumn?: boolean;
-  timezone?: string;
+  orgId?: string | null | undefined;
+  showOrgColumn?: boolean | undefined;
+  timezone?: string | undefined;
 }) {
   const [from, setFrom] = useState(today(-6));
   const [to, setTo] = useState(today());
