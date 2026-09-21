@@ -144,7 +144,7 @@ export const suggestClinicConfig = createServerFn({ method: "POST" })
         providerOptions: {
           openai: {
             forceReasoning: true,
-            reasoningEffort: "medium",
+            reasoningEffort: "low",
             reasoningSummary: "auto",
             store: false,
             include: ["reasoning.encrypted_content"],
