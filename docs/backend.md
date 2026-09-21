@@ -98,3 +98,22 @@ de preferência de chamada.
 super administrador e deixa de funcionar assim que existir qualquer papel atribuído.
 Depois disso, as contas são criadas por `createTeamMember` (super_admin para
 qualquer clínica; org_admin apenas na sua).
+
+## Registo de auditoria (`audit_log`)
+
+Rasto completo e **inalterável**: quem, quando, em que clínica e em que dia de serviço (turno).
+
+- A tabela `public.audit_log` só tem política de leitura. Não existem políticas de inserção,
+  alteração ou remoção, por isso nenhuma conta da aplicação pode escrever nem apagar registos;
+  as linhas são criadas por gatilhos `SECURITY DEFINER` (`private.audit_write`).
+- **Senhas**: o gatilho `audit_ticket_events` espelha cada `ticket_events` — emitida, chamada,
+  rechamada, em atendimento, concluída, faltou, saltada, recuperada e admitida — guardando fila,
+  posto, se era prioritária e o motivo.
+- **Configuração**: os gatilhos em `queues`, `desks` e `cabinets` registam criações, remoções e
+  alterações (nome, ativo, filas atribuídas, regra de ordenação, rácio, ordem, duração média) com os
+  valores antes/depois; o gatilho em `organizations` regista alterações à configuração da clínica.
+- **Leitura**: `public.audit_trail(p_from, p_to, p_org, p_entity, p_action, p_limit)` — chefe de turno
+  e administrador da clínica vêem só a própria clínica; o super administrador vê todas e pode filtrar
+  por clínica. Os filtros de data usam o fuso da clínica.
+- **Onde aparece**: separador "Auditoria" na administração da clínica, secção "Registo de auditoria"
+  no ecrã de Turno e secção global em "Plataforma" (com coluna de clínica).

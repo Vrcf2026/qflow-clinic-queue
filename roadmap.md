@@ -15,8 +15,10 @@
 - Página /setup para a primeira conta de administração
 
 ## Por fazer
-- Registo de auditoria imutável (quem, quando, o quê) para chamar, re-chamar, concluir, cancelar e alterações de balcões/filas, com filtros por clínica e por turno/dia
 - Nota de turno do gabinete ainda não fica guardada
 - Google: falta a configuração do lado da Google para o botão "Entrar com Google"
 - Canal de vídeo da TV (endereço do stream/M3U) por preencher
 - SMS (depois)
+
+## Concluído (recente)
+- Registo de auditoria imutável com filtros por clínica, dia de serviço e tipo (senhas + alterações de filas/balcões/gabinetes/clínica)
