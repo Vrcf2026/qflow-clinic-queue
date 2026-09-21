@@ -142,3 +142,18 @@ lista de avisos a confirmar por uma pessoa.
   passam pelos gatilhos de auditoria, pelo que ficam no registo imutável.
 - Onde: separador "Assistente IA" na administração da clínica e secção no ecrã
   "Turno". O rececionista e o médico não têm acesso.
+
+### Auditoria das sugestões da IA
+
+Cada sugestão fica no registo imutável em três momentos, com tipo `sugestao_ia`:
+
+- `sugestao_gerada` — o pedido escrito, o utilizador, a data/hora, o modelo e a
+  proposta completa (gatilho em `config_suggestions`).
+- `sugestao_aplicada` — o que foi **aceite** (filas criadas/atualizadas, balcões
+  e gabinetes com as filas e regra, regra da clínica) e o que foi **rejeitado**
+  (itens sem nome ou sem prefixo, filas indicadas que não existem, regra
+  inválida), escrito por `apply_config_suggestion`.
+- `sugestao_descartada` — a proposta foi rejeitada na totalidade e nada mudou.
+
+Visível no separador "Auditoria" (administração da clínica), no ecrã "Turno" e
+na visão global da plataforma, com o filtro de tipo "Sugestão IA".
