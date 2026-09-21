@@ -4,6 +4,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
+import { AuditLog } from "@/components/audit-log";
 import { OrgStats } from "@/components/org-stats";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -55,6 +56,7 @@ export const Route = createFileRoute("/_authenticated/org/dashboard")({
 const TABS = [
   ["geral", "Visão geral"],
   ["estatisticas", "Estatísticas"],
+  ["auditoria", "Auditoria"],
   ["filas", "Filas"],
   ["balcoes", "Balcões"],
   ["gabinetes", "Gabinetes"],
@@ -307,6 +309,11 @@ function Dashboard() {
         {/* Estatísticas */}
         <TabsContent value="estatisticas" className="mt-6">
           <OrgStats />
+        </TabsContent>
+
+        {/* Auditoria */}
+        <TabsContent value="auditoria" className="mt-6">
+          <AuditLog orgId={orgId} timezone={session.org?.timezone ?? "Europe/Lisbon"} />
         </TabsContent>
 
         {/* Filas */}
