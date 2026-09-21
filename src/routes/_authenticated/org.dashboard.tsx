@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { createTeamMember } from "@/lib/team.functions";
 import { useOrgLive, useSession } from "@/hooks/use-qflow";
 import { StrategyPicker } from "@/components/strategy-picker";
+import { ConfigAssistant } from "@/components/config-assistant";
 import { setPostStrategy, setQueueStrategy } from "@/lib/ticket-actions";
 import {
   MODULE_LABELS,
@@ -55,6 +56,7 @@ export const Route = createFileRoute("/_authenticated/org/dashboard")({
 
 const TABS = [
   ["geral", "Visão geral"],
+  ["assistente", "Assistente IA"],
   ["estatisticas", "Estatísticas"],
   ["auditoria", "Auditoria"],
   ["filas", "Filas"],
@@ -304,6 +306,20 @@ function Dashboard() {
               })}
             </ul>
           </div>
+        </TabsContent>
+
+        {/* Assistente de configuração com IA */}
+        <TabsContent value="assistente" className="mt-6">
+          <ConfigAssistant
+            timezone={session.org?.timezone ?? "Europe/Lisbon"}
+            canApply={session.roles.some(
+              (r) => r === "org_admin" || r === "chefe_turno" || r === "super_admin",
+            )}
+            onApplied={() => {
+              session.reload();
+              live.refresh();
+            }}
+          />
         </TabsContent>
 
         {/* Estatísticas */}

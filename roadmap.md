@@ -22,3 +22,10 @@
 
 ## Concluído (recente)
 - Registo de auditoria imutável com filtros por clínica, dia de serviço e tipo (senhas + alterações de filas/balcões/gabinetes/clínica)
+
+## Assistente de configuração com IA
+
+- [x] Descrição livre das necessidades → sugestão de filas, balcões, gabinetes e prioridades (Lovable AI)
+- [x] Histórico das sugestões em config_suggestions, com estado e quem aplicou
+- [x] Botão "Aplicar" no servidor (apply_config_suggestion), só chefe de turno ou superior
+- [x] Disponível no ecrã Turno e no separador "Assistente IA" da administração

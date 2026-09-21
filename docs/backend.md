@@ -117,3 +117,28 @@ Rasto completo e **inalterável**: quem, quando, em que clínica e em que dia de
   por clínica. Os filtros de data usam o fuso da clínica.
 - **Onde aparece**: separador "Auditoria" na administração da clínica, secção "Registo de auditoria"
   no ecrã de Turno e secção global em "Plataforma" (com coluna de clínica).
+
+## Assistente de configuração (IA)
+
+O chefe de turno (ou a administração) escreve em texto livre como a clínica
+funciona e o que precisa. O servidor lê a configuração atual (filas, balcões,
+gabinetes, regra em vigor), envia-a ao modelo através do Lovable AI Gateway e
+recebe uma proposta estruturada: filas (nome, prefixo, cor, duração média,
+prioritários), balcões e gabinetes (filas por ordem de preferência e regra
+própria ou herdada) e a regra da clínica, com o motivo de cada escolha e uma
+lista de avisos a confirmar por uma pessoa.
+
+- Função de servidor: `suggestClinicConfig` (`src/lib/config-assistant.functions.ts`).
+  Valida o papel do chamador (super_admin, org_admin ou chefe_turno) antes de
+  chamar o modelo. A chave da IA nunca sai do servidor.
+- Tabela `config_suggestions`: guarda o pedido, a proposta, o modelo, o estado
+  (`pendente`, `aplicada`, `descartada`), quem pediu e quem aplicou. Leitura
+  restrita a super_admin e à própria clínica (chefe de turno/administração).
+- Nada muda na configuração até alguém carregar em "Aplicar". A aplicação
+  acontece em `public.apply_config_suggestion(p_id)` (SECURITY DEFINER), que
+  valida `private.can_manage_org_config()`, cria filas em falta (por prefixo),
+  atualiza as existentes, cria/atualiza balcões e gabinetes (por nome) com as
+  filas pela ordem proposta e grava a regra da clínica. Todas estas alterações
+  passam pelos gatilhos de auditoria, pelo que ficam no registo imutável.
+- Onde: separador "Assistente IA" na administração da clínica e secção no ecrã
+  "Turno". O rececionista e o médico não têm acesso.
