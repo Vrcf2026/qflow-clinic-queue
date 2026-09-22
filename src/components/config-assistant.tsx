@@ -272,6 +272,19 @@ export function ConfigAssistant({
           </article>
         ))
       )}
+
+      {previewId && (
+        <SuggestionPreview
+          id={previewId}
+          open
+          onOpenChange={(next) => {
+            if (!next) setPreviewId(null);
+          }}
+          canApply={canApply}
+          applying={applying === previewId}
+          onApply={() => void apply(previewId)}
+        />
+      )}
     </div>
   );
 }
