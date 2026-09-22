@@ -138,6 +138,7 @@ export function ConfigAssistant({
         payload["cabinets_created"] ?? 0,
       )} gabinete(s) criados.`,
     );
+    setPreviewId(null);
     void load();
     onApplied?.();
   };
@@ -208,8 +209,8 @@ export function ConfigAssistant({
               </span>
               {row.status === "pendente" && canApply && (
                 <div className="ml-auto flex gap-2">
-                  <Button size="sm" onClick={() => void apply(row.id)} disabled={applying === row.id}>
-                    {applying === row.id ? "A aplicar..." : "Aplicar"}
+                  <Button size="sm" onClick={() => setPreviewId(row.id)}>
+                    Pré-visualizar e simular
                   </Button>
                   <Button size="sm" variant="outline" onClick={() => void discard(row.id)}>
                     Descartar
