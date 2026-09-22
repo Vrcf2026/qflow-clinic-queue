@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { suggestClinicConfig } from "@/lib/config-assistant.functions";
 import { QUEUE_STRATEGY_LABELS, isQueueStrategy, timeLisbon } from "@/lib/qflow";
+import { SuggestionPreview } from "@/components/suggestion-preview";
 
 type Post = {
   name: string;
@@ -70,6 +71,7 @@ export function ConfigAssistant({
   const [busy, setBusy] = useState(false);
   const [applying, setApplying] = useState<string | null>(null);
   const [rows, setRows] = useState<Row[]>([]);
+  const [previewId, setPreviewId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const { data } = await supabase
@@ -136,6 +138,7 @@ export function ConfigAssistant({
         payload["cabinets_created"] ?? 0,
       )} gabinete(s) criados.`,
     );
+    setPreviewId(null);
     void load();
     onApplied?.();
   };
@@ -206,8 +209,8 @@ export function ConfigAssistant({
               </span>
               {row.status === "pendente" && canApply && (
                 <div className="ml-auto flex gap-2">
-                  <Button size="sm" onClick={() => void apply(row.id)} disabled={applying === row.id}>
-                    {applying === row.id ? "A aplicar..." : "Aplicar"}
+                  <Button size="sm" onClick={() => setPreviewId(row.id)}>
+                    Pré-visualizar e simular
                   </Button>
                   <Button size="sm" variant="outline" onClick={() => void discard(row.id)}>
                     Descartar
@@ -268,6 +271,19 @@ export function ConfigAssistant({
             )}
           </article>
         ))
+      )}
+
+      {previewId && (
+        <SuggestionPreview
+          id={previewId}
+          open
+          onOpenChange={(next) => {
+            if (!next) setPreviewId(null);
+          }}
+          canApply={canApply}
+          applying={applying === previewId}
+          onApply={() => void apply(previewId)}
+        />
       )}
     </div>
   );

@@ -157,3 +157,29 @@ Cada sugestão fica no registo imutável em três momentos, com tipo `sugestao_i
 
 Visível no separador "Auditoria" (administração da clínica), no ecrã "Turno" e
 na visão global da plataforma, com o filtro de tipo "Sugestão IA".
+
+## Pré-visualização e simulação das sugestões da IA
+
+`preview_config_suggestion(p_id)` (SECURITY DEFINER, STABLE, EXECUTE apenas
+`authenticated`; valida `private.can_manage_org_config()` e a clínica do chamador)
+devolve:
+
+- `atual` — configuração em vigor (regra da clínica, filas, balcões, gabinetes);
+- `diff.filas` — por prefixo, estado `nova` / `alterada` / `igual` e os campos que
+  mudam (nome, cor, duração média, aceita prioritários) com valores antes/depois;
+- `diff.balcoes` / `diff.gabinetes` — estado `novo` / `alterado`, filas antes/depois
+  pela ordem de chamada e regra antes/depois;
+- `diff.clinica` — regra antes/depois;
+- `validacoes` — lista de `{nivel: erro|aviso, mensagem}`. Erros: fila sem prefixo,
+  prefixo repetido, posto sem nome, fila referida que não existe nem é criada, regra
+  inexistente, rácio alternado inválido. Avisos: posto sem filas, duração média fora
+  de 3–60 min, filas atuais não mencionadas;
+- `erros` — número de erros; o botão "Aplicar" fica bloqueado quando é maior que zero.
+
+A simulação de chamadas corre no navegador (`src/lib/simulate-queue.ts`): gera senhas
+fictícias por fila (uma em cada três prioritária) e reproduce a ordem de chamada de
+cada posto com a regra efetiva (`chegada`, `prioridade`, `alternado N:M`, `duracao`),
+mostrando a espera máxima de prioritários e normais. Não escreve nada na base de dados.
+
+A interface está em `src/components/suggestion-preview.tsx`, aberta pelo botão
+"Pré-visualizar e simular" do assistente (Turno e Administração).
