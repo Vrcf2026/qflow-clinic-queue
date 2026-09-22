@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { suggestClinicConfig } from "@/lib/config-assistant.functions";
 import { QUEUE_STRATEGY_LABELS, isQueueStrategy, timeLisbon } from "@/lib/qflow";
+import { SuggestionPreview } from "@/components/suggestion-preview";
 
 type Post = {
   name: string;
@@ -70,6 +71,7 @@ export function ConfigAssistant({
   const [busy, setBusy] = useState(false);
   const [applying, setApplying] = useState<string | null>(null);
   const [rows, setRows] = useState<Row[]>([]);
+  const [previewId, setPreviewId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const { data } = await supabase
