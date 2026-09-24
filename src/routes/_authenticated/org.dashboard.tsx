@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { AppShell } from "@/components/app-shell";
 import { AuditLog } from "@/components/audit-log";
 import { OrgStats } from "@/components/org-stats";
+import { TvMediaList, TvMediaAdd } from "@/components/tv-media-manager";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -881,41 +882,60 @@ function Dashboard() {
         </TabsContent>
 
         {/* TV */}
-        <TabsContent value="tv" className="mt-6 max-w-xl space-y-4 rounded-2xl border bg-card p-5">
-          <Field label="Endereço do stream (HLS)">
-            <Input value={tv.stream_url} onChange={(e) => setTv({ ...tv, stream_url: e.target.value })} />
-          </Field>
-          <Field label="Lista de canais (M3U)">
-            <Input value={tv.m3u_url} onChange={(e) => setTv({ ...tv, m3u_url: e.target.value })} />
-          </Field>
-          <Field label="Disposição">
-            <select
-              className="rounded-lg border bg-card px-3 py-2 text-sm"
-              value={tv.layout}
-              onChange={(e) => setTv({ ...tv, layout: e.target.value as TvConfig["layout"] })}
-            >
-              <option value="video_esquerda">Vídeo à esquerda, filas à direita</option>
-              <option value="video_completo">Vídeo em destaque</option>
-              <option value="sem_video">Apenas filas</option>
-            </select>
-          </Field>
-          <Field label="Largura do vídeo (%)">
-            <Input
-              type="number"
-              min={30}
-              max={80}
-              value={tv.video_ratio}
-              onChange={(e) => setTv({ ...tv, video_ratio: Number(e.target.value) || 65 })}
-            />
-          </Field>
-          <label className="flex items-center justify-between gap-3 text-sm">
-            Silenciar vídeo durante a chamada
-            <Switch
-              checked={tv.silenciar_em_chamada}
-              onCheckedChange={(v) => setTv({ ...tv, silenciar_em_chamada: v })}
-            />
-          </label>
-          <Button onClick={() => void saveOrg({ tv_config: tv })}>Guardar</Button>
+        <TabsContent value="tv" className="mt-6 space-y-6 max-w-3xl">
+
+          {/* Layout e comportamento */}
+          <div className="rounded-2xl border bg-card p-5 space-y-4">
+            <h3 className="text-sm font-semibold">Disposição e comportamento</h3>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <Field label="Disposição">
+                <select
+                  className="rounded-lg border bg-card px-3 py-2 text-sm"
+                  value={tv.layout}
+                  onChange={(e) => setTv({ ...tv, layout: e.target.value as TvConfig["layout"] })}
+                >
+                  <option value="video_esquerda">Vídeo à esquerda · filas à direita</option>
+                  <option value="video_completo">Vídeo em destaque</option>
+                  <option value="sem_video">Apenas filas (sem vídeo)</option>
+                </select>
+              </Field>
+              <Field label="Largura do vídeo (%)" hint="30–80">
+                <Input
+                  type="number" min={30} max={80}
+                  value={tv.video_ratio}
+                  onChange={(e) => setTv({ ...tv, video_ratio: Number(e.target.value) || 65 })}
+                  disabled={tv.layout === "sem_video"}
+                />
+              </Field>
+              <Field label="Comportamento durante chamada">
+                <label className="flex h-10 items-center gap-3 rounded-lg border bg-card px-3 text-sm cursor-pointer">
+                  <Switch
+                    checked={tv.silenciar_em_chamada}
+                    onCheckedChange={(v) => setTv({ ...tv, silenciar_em_chamada: v })}
+                  />
+                  Silenciar vídeo
+                </label>
+              </Field>
+            </div>
+            <Button onClick={() => void saveOrg({ tv_config: tv })}>Guardar disposição</Button>
+          </div>
+
+          {/* Media Manager */}
+          <div className="rounded-2xl border bg-card p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-semibold">Conteúdo do painel TV</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">Streams ao vivo, listas M3U, vídeos MP4 por URL ou upload. A TV reproduz por ordem.</p>
+              </div>
+            </div>
+
+            {/* Lista de media existente */}
+            <TvMediaList orgId={orgId} />
+
+            {/* Adicionar novo item */}
+            <TvMediaAdd orgId={orgId} />
+          </div>
+
         </TabsContent>
 
         {/* Módulos */}

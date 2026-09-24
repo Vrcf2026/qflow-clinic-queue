@@ -101,6 +101,19 @@ function Kiosk() {
     return () => clearInterval(id);
   }, [load]);
 
+  // Fullscreen automático — ideal para tablet em modo quiosque
+  useEffect(() => {
+    const el = document.documentElement;
+    const requestFs = () => {
+      if (document.fullscreenElement) return;
+      el.requestFullscreen?.().catch(() => {});
+    };
+    // Tenta ao montar e quando o utilizador toca no ecrã (necessário em iOS/Android)
+    requestFs();
+    document.addEventListener("click", requestFs, { once: true });
+    return () => document.removeEventListener("click", requestFs);
+  }, []);
+
   const langs = useMemo(() => {
     const kl = (ctx?.org.kiosk_languages ?? { pt: true }) as { pt?: boolean; en?: boolean };
     return { pt: kl.pt !== false, en: !!kl.en };
@@ -135,6 +148,7 @@ function Kiosk() {
       | { ticket: { id: string; full_ticket: string }; position: number; wait_minutes: number; error?: string }
       | null;
     if (!payload || payload.error) return;
+    beep();
     setIssued({
       full_ticket: payload.ticket.full_ticket,
       ticket_id: payload.ticket.id,

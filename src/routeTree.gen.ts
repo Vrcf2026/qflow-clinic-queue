@@ -21,6 +21,7 @@ import { Route as AuthenticatedOrgDashboardRouteImport } from './routes/_authent
 import { Route as AuthenticatedOrgGabineteRouteImport } from './routes/_authenticated/org.gabinete'
 import { Route as AuthenticatedOrgRecepcaoRouteImport } from './routes/_authenticated/org.recepcao'
 import { Route as AuthenticatedOrgTurnoRouteImport } from './routes/_authenticated/org.turno'
+import { Route as AuthenticatedOrgPerfilRouteImport } from './routes/_authenticated/org.perfil'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -79,6 +80,12 @@ const AuthenticatedOrgRecepcaoRoute =
     path: '/org/recepcao',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedOrgPerfilRoute = AuthenticatedOrgPerfilRouteImport.update({
+  id: '/org/perfil',
+  path: '/org/perfil',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+
 const AuthenticatedOrgTurnoRoute = AuthenticatedOrgTurnoRouteImport.update({
   id: '/org/turno',
   path: '/org/turno',
@@ -97,6 +104,7 @@ export interface FileRoutesByFullPath {
   '/org/gabinete': typeof AuthenticatedOrgGabineteRoute
   '/org/recepcao': typeof AuthenticatedOrgRecepcaoRoute
   '/org/turno': typeof AuthenticatedOrgTurnoRoute
+  '/org/perfil': typeof AuthenticatedOrgPerfilRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -110,6 +118,7 @@ export interface FileRoutesByTo {
   '/org/gabinete': typeof AuthenticatedOrgGabineteRoute
   '/org/recepcao': typeof AuthenticatedOrgRecepcaoRoute
   '/org/turno': typeof AuthenticatedOrgTurnoRoute
+  '/org/perfil': typeof AuthenticatedOrgPerfilRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -125,6 +134,7 @@ export interface FileRoutesById {
   '/_authenticated/org/gabinete': typeof AuthenticatedOrgGabineteRoute
   '/_authenticated/org/recepcao': typeof AuthenticatedOrgRecepcaoRoute
   '/_authenticated/org/turno': typeof AuthenticatedOrgTurnoRoute
+  '/_authenticated/org/perfil': typeof AuthenticatedOrgPerfilRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -140,6 +150,7 @@ export interface FileRouteTypes {
     | '/org/gabinete'
     | '/org/recepcao'
     | '/org/turno'
+    | '/org/perfil'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -153,6 +164,7 @@ export interface FileRouteTypes {
     | '/org/gabinete'
     | '/org/recepcao'
     | '/org/turno'
+    | '/org/perfil'
   id:
     | '__root__'
     | '/'
@@ -167,6 +179,7 @@ export interface FileRouteTypes {
     | '/_authenticated/org/gabinete'
     | '/_authenticated/org/recepcao'
     | '/_authenticated/org/turno'
+    | '/_authenticated/org/perfil'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -265,6 +278,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedOrgTurnoRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/org/perfil': {
+      id: '/_authenticated/org/perfil'
+      path: '/org/perfil'
+      fullPath: '/org/perfil'
+      preLoaderRoute: typeof AuthenticatedOrgPerfilRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
@@ -274,6 +294,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedOrgGabineteRoute: typeof AuthenticatedOrgGabineteRoute
   AuthenticatedOrgRecepcaoRoute: typeof AuthenticatedOrgRecepcaoRoute
   AuthenticatedOrgTurnoRoute: typeof AuthenticatedOrgTurnoRoute
+  AuthenticatedOrgPerfilRoute: typeof AuthenticatedOrgPerfilRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -282,6 +303,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedOrgGabineteRoute: AuthenticatedOrgGabineteRoute,
   AuthenticatedOrgRecepcaoRoute: AuthenticatedOrgRecepcaoRoute,
   AuthenticatedOrgTurnoRoute: AuthenticatedOrgTurnoRoute,
+  AuthenticatedOrgPerfilRoute: AuthenticatedOrgPerfilRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =

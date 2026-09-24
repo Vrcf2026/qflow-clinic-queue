@@ -23,6 +23,16 @@ type TvCall = {
   lang: string;
 };
 
+type MediaItem = {
+  id: string;
+  name: string;
+  type: "stream" | "m3u" | "video_url" | "video_upload";
+  url: string;
+  duration_s: number | null;
+  active: boolean;
+  sort_order: number;
+};
+
 export const Route = createFileRoute("/tv")({
   ssr: false,
   validateSearch: (search: Record<string, unknown>) => ({ token: String(search["token"] ?? "") }),
@@ -52,6 +62,9 @@ function TvPanel() {
   const [overlay, setOverlay] = useState<TvCall | null>(null);
   const [channels, setChannels] = useState<{ name: string; url: string }[]>([]);
   const [channel, setChannel] = useState<string>("");
+  const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
+  const [playlistIdx, setPlaylistIdx] = useState(0);
+  const playlistTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [muted, setMuted] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const seenCall = useRef<string | null>(null);
@@ -78,6 +91,15 @@ function TvPanel() {
       if (payload.server_now) {
         setOffsetMs(new Date(payload.server_now).getTime() - (sentAt + Date.now()) / 2);
       }
+      // Carregar media items para esta org
+      const { data: mediaData } = await supabase
+        .from("tv_media")
+        .select("*")
+        .eq("org_id", (payload.org as { id: string }).id)
+        .eq("active", true)
+        .order("sort_order")
+        .order("created_at");
+      setMediaItems((mediaData as MediaItem[]) ?? []);
     })();
   }, [token]);
 
@@ -168,8 +190,22 @@ function TvPanel() {
     };
   }, [cfg.m3u_url, cfg.active_channel, channel]);
 
+  // Determinar fonte de vídeo activa
+  // Prioridade: 1) canal M3U seleccionado, 2) media items da tabela, 3) stream_url legado
+  const activeMedia = mediaItems.length > 0 ? mediaItems[playlistIdx % mediaItems.length] : null;
+
+  // Avançar playlist automaticamente se o item tiver duração definida
+  useEffect(() => {
+    if (!activeMedia || !activeMedia.duration_s) return;
+    if (playlistTimer.current) clearTimeout(playlistTimer.current);
+    playlistTimer.current = setTimeout(() => {
+      setPlaylistIdx((i) => i + 1);
+    }, activeMedia.duration_s * 1000);
+    return () => { if (playlistTimer.current) clearTimeout(playlistTimer.current); };
+  }, [activeMedia, playlistIdx]);
+
   // HLS playback
-  const source = channel || cfg.stream_url;
+  const source = channel || (activeMedia ? activeMedia.url : cfg.stream_url);
   useEffect(() => {
     const video = videoRef.current;
     if (!video || !source) return;
@@ -197,7 +233,11 @@ function TvPanel() {
   }, [source, cfg.volume, muted]);
 
   const mods = (org?.modules_enabled ?? {}) as { iptv?: boolean };
-  const showVideo = !!mods.iptv && cfg.layout !== "sem_video" && !!source;
+  // Mostrar vídeo se: módulo IPTV activo OU se houver media items configurados
+  const showVideo = (!!mods.iptv || mediaItems.length > 0) && cfg.layout !== "sem_video" && !!source;
+  
+  // Nome do item actual para mostrar no selector
+  const activeMediaName = activeMedia?.name ?? channel ?? "";
 
   if (error) {
     return (
@@ -228,11 +268,12 @@ function TvPanel() {
               <button onClick={() => setMuted((m) => !m)} aria-label="Som">
                 {muted ? <VolumeX className="size-4" /> : <Volume2 className="size-4" />}
               </button>
+              {/* Selector de canal M3U */}
               {channels.length > 0 && (
                 <select
                   className="max-w-48 bg-transparent text-tv-foreground outline-none"
                   value={channel}
-                  onChange={(e) => setChannel(e.target.value)}
+                  onChange={(e) => { setChannel(e.target.value); setPlaylistIdx(0); }}
                 >
                   {channels.map((c) => (
                     <option key={c.url} value={c.url} className="text-foreground">
@@ -240,6 +281,24 @@ function TvPanel() {
                     </option>
                   ))}
                 </select>
+              )}
+              {/* Selector de media items (quando não há M3U) */}
+              {channels.length === 0 && mediaItems.length > 1 && (
+                <select
+                  className="max-w-48 bg-transparent text-tv-foreground outline-none"
+                  value={playlistIdx}
+                  onChange={(e) => setPlaylistIdx(Number(e.target.value))}
+                >
+                  {mediaItems.map((m, i) => (
+                    <option key={m.id} value={i} className="text-foreground">
+                      {m.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+              {/* Nome do item actual (quando só há 1) */}
+              {channels.length === 0 && mediaItems.length === 1 && (
+                <span className="text-xs text-tv-muted truncate max-w-40">{activeMediaName}</span>
               )}
             </div>
           </div>
