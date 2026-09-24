@@ -303,6 +303,12 @@ export function speakCall(fullTicket: string, destination: string, lang: "pt" | 
   window.speechSynthesis.speak(utter);
 }
 
+export async function qrDataUrl(value: string, size = 220): Promise<string> {
+  const QRCode = await import("qrcode");
+  return QRCode.default.toDataURL(value, { width: size, margin: 2, color: { dark: "#000000", light: "#ffffff" } });
+}
+
+/** @deprecated usar qrDataUrl */
 export function qrUrl(value: string, size = 220): string {
   return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(value)}`;
 }

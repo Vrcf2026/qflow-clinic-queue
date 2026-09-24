@@ -133,11 +133,15 @@ function Recepcao() {
 
   const target = { deskId: desk?.id ?? null };
 
+  const [calling, setCalling] = useState(false);
+
   const doCall = async () => {
-    if (!next) return;
+    if (!next || calling) return;
+    setCalling(true);
     await callTicket(next, target);
     setLastCalled(next);
     live.refresh();
+    setCalling(false);
   };
 
   return (
@@ -187,11 +191,11 @@ function Recepcao() {
               variant="secondary"
               size="lg"
               className="mt-5 w-full text-lg"
-              disabled={!next}
+              disabled={!next || calling}
               onClick={doCall}
             >
               <PhoneCall className="mr-2 size-5" />
-              {next ? `Chamar ${next.full_ticket}` : "Chamar"}
+              {calling ? "A chamar…" : next ? `Chamar ${next.full_ticket}` : "Chamar"}
             </Button>
             <div className="mt-3 grid grid-cols-3 gap-2">
               <Button

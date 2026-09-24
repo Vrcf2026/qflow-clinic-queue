@@ -4,7 +4,7 @@ import { Accessibility, Printer, QrCode, RotateCcw, Smartphone } from "lucide-re
 
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { qrUrl, type Org } from "@/lib/qflow";
+import { qrDataUrl, type Org } from "@/lib/qflow";
 
 type KioskQueue = {
   id: string;
@@ -85,6 +85,7 @@ function Kiosk() {
   const [queue, setQueue] = useState<KioskQueue | null>(null);
   const [issued, setIssued] = useState<Issued | null>(null);
   const [showQr, setShowQr] = useState(false);
+  const [qrSrc, setQrSrc] = useState<string>("");
 
   const load = useCallback(async () => {
     if (!token) return setError("Token do dispositivo em falta.");
@@ -165,7 +166,12 @@ function Kiosk() {
       ? `${window.location.origin}/espera?ticket=${issued.ticket_id}`
       : "";
 
-  return (
+  useEffect(() => {
+    if (!followUrl) { setQrSrc(""); return; }
+    void qrDataUrl(followUrl, 224).then(setQrSrc);
+  }, [followUrl]);
+
+    return (
     <main className="min-h-screen bg-background">
       <header className="flex items-center justify-between border-b bg-card px-8 py-5">
         <div className="flex items-center gap-4">
@@ -268,7 +274,7 @@ function Kiosk() {
 
           {showQr && followUrl && (
             <div className="mt-8 flex flex-col items-center gap-3">
-              <img src={qrUrl(followUrl)} alt="QR" className="size-56 rounded-xl border bg-card p-3" />
+              <img src={qrSrc} alt="QR" className="size-56 rounded-xl border bg-card p-3" />
               <p className="text-sm text-muted-foreground">{t.scan}</p>
             </div>
           )}
@@ -304,7 +310,7 @@ function Kiosk() {
               </div>
               <div style={{ fontSize: "10pt" }}>{t.place(issued.position, issued.wait_minutes)}</div>
               {followUrl ? (
-                <img src={qrUrl(followUrl, 180)} alt="" style={{ width: "35mm", margin: "3mm auto" }} />
+                <img src={qrSrc} alt="" style={{ width: "35mm", margin: "3mm auto" }} />
               ) : null}
               <div style={{ fontSize: "9pt" }}>
                 {new Intl.DateTimeFormat("pt-PT", {

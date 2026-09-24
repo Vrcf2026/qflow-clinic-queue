@@ -69,6 +69,9 @@ export function AppShell({
                 {primaryRole ? ROLE_LABELS[primaryRole] : ""}
               </span>
             </span>
+            <Link to="/org/perfil" className="rounded-lg border bg-card px-3 py-1.5 text-sm font-medium hover:bg-accent transition-colors hidden sm:block">
+              Perfil
+            </Link>
             <Button variant="outline" size="sm" onClick={signOut}>
               <LogOut className="mr-1.5 size-4" /> Sair
             </Button>

@@ -1,18 +1,14 @@
 {
   "name": "QFlow — Gestão de Senhas",
   "short_name": "QFlow",
-  "description": "Acompanhe a sua vez na fila da clínica",
-  "start_url": "/espera",
+  "description": "Sistema de gestão de senhas para clínicas",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#1a6fc4",
-  "orientation": "portrait",
-  "icons": [
-    {
-      "src": "/favicon.ico",
-      "sizes": "any",
-      "type": "image/x-icon",
-      "purpose": "any maskable"
-    }
-  ]
+  "orientation": "any",
+  "categories": ["medical", "productivity"],
+  "icons": [{ "src": "/favicon.ico", "sizes": "any", "type": "image/x-icon", "purpose": "any maskable" }],
+  "shortcuts": [{ "name": "A minha senha", "short_name": "Senha", "url": "/espera", "description": "Acompanhar posição na fila" }]
 }
