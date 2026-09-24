@@ -1,8 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PhoneCall, Check, UserX } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -35,6 +37,39 @@ function Gabinete() {
   const live = useOrgLive(session.org?.id, session.dayStart);
   const [cabinetId, setCabinetId] = useState<string | null>(null);
   const [note, setNote] = useState("");
+  const [noteSaving, setNoteSaving] = useState(false);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Carregar nota do dia quando muda o gabinete
+  const loadNote = useCallback(async (id: string) => {
+    const { data } = await supabase.rpc("load_shift_note", { p_cabinet_id: id });
+    const payload = data as { content?: string } | null;
+    if (payload?.content !== undefined) setNote(payload.content);
+  }, []);
+
+  useEffect(() => {
+    if (cabinetId) void loadNote(cabinetId);
+  }, [cabinetId, loadNote]);
+
+  // Auto-guardar com debounce de 1.5s após parar de escrever
+  const handleNoteChange = (value: string) => {
+    setNote(value);
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(async () => {
+      if (!cabinetId) return;
+      setNoteSaving(true);
+      const { data } = await supabase.rpc("save_shift_note", {
+        p_cabinet_id: cabinetId,
+        p_content: value,
+      });
+      setNoteSaving(false);
+      const result = data as { error?: string } | null;
+      if (result?.error) toast.error("Não foi possível guardar a nota.");
+    }, 1500);
+  };
+
+  // Limpar timer ao desmontar
+  useEffect(() => () => { if (saveTimer.current) clearTimeout(saveTimer.current); }, []);
 
   // A doctor is bound to the cabinet assigned to their account; other roles may switch.
   const locked = session.primaryRole === "medico" && !!session.profile?.cabinet_id;
@@ -206,13 +241,22 @@ function Gabinete() {
             <Label htmlFor="note" className="text-sm text-muted-foreground">
               Nota de turno
             </Label>
+            <div className="flex items-center justify-between mt-0 mb-2">
+              <Label htmlFor="note" className="text-sm text-muted-foreground">
+                Nota de turno
+              </Label>
+              {noteSaving ? (
+                <span className="text-xs text-muted-foreground">A guardar…</span>
+              ) : note ? (
+                <span className="text-xs text-green-600">Guardado</span>
+              ) : null}
+            </div>
             <Textarea
               id="note"
-              className="mt-2"
               rows={5}
               value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder="Observações do turno (apenas neste dispositivo)"
+              onChange={(e) => handleNoteChange(e.target.value)}
+              placeholder="Observações para este turno — guardado automaticamente"
             />
           </div>
         </aside>
